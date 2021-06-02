@@ -42,6 +42,7 @@ func (m MetricAggregator) Flush() []Metric {
 			Name:  identity.name,
 			Value: state.CurrentValue - state.LastFlushedValue,
 		})
+		state.LastFlushedValue = state.CurrentValue
 	}
 	return metrics
 }
