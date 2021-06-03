@@ -68,8 +68,8 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentTotal: 100,
-					CurrentValue: 100,
+					RunningTotal: 100,
+					LatestValue:  100,
 				},
 			},
 		},
@@ -80,8 +80,8 @@ func TestMetricTracker_Record(t *testing.T) {
 					{
 						name: "foobar",
 					}: {
-						CurrentTotal: 100,
-						CurrentValue: 100,
+						RunningTotal: 100,
+						LatestValue:  100,
 					},
 				},
 			},
@@ -95,8 +95,8 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentTotal: 200,
-					CurrentValue: 200,
+					RunningTotal: 200,
+					LatestValue:  200,
 				},
 			},
 		},
@@ -107,8 +107,8 @@ func TestMetricTracker_Record(t *testing.T) {
 					{
 						name: "foobar",
 					}: {
-						CurrentTotal: 200,
-						CurrentValue: 200,
+						RunningTotal: 200,
+						LatestValue:  200,
 					},
 				},
 			},
@@ -122,8 +122,8 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentTotal: 280,
-					CurrentValue: 80,
+					RunningTotal: 280,
+					LatestValue:  80,
 					Offset:       200,
 				},
 			},
@@ -135,8 +135,8 @@ func TestMetricTracker_Record(t *testing.T) {
 					{
 						name: "foobar",
 					}: {
-						CurrentTotal: 280,
-						CurrentValue: 80,
+						RunningTotal: 280,
+						LatestValue:  80,
 						Offset:       200,
 					},
 				},
@@ -151,8 +151,8 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentTotal: 300,
-					CurrentValue: 20,
+					RunningTotal: 300,
+					LatestValue:  20,
 					Offset:       280,
 				},
 			},
