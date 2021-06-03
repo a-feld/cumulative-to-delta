@@ -32,7 +32,7 @@ func (m *MetricTracker) Record(in Metric) {
 	defer m.mu.Unlock()
 	if state, ok := m.States[in.Identity()]; ok {
 		if in.Value < state.CurrentValue {
-			offset += state.CurrentValue
+			offset = state.Offset + state.CurrentValue
 		} else {
 			offset = state.Offset
 		}
