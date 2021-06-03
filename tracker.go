@@ -57,5 +57,7 @@ func (m *MetricTracker) Flush() []Metric {
 		})
 		state.LastFlushedValue = state.CurrentTotal
 	}
+	// TODO: flush m.States to disk via json marshal
+	// Once Flush is called, any metric deltas are considered "sent"
 	return metrics
 }
