@@ -57,7 +57,7 @@ func (m *MetricTracker) Flush() []Metric {
 	metrics := make([]Metric, len(m.States), 0)
 	for identity, state := range m.States {
 		metrics = append(metrics, Metric{
-			Name:  identity.name,
+			Name:  identity.Name(),
 			Value: state.RunningTotal - state.LastFlushed,
 		})
 		state.LastFlushed = state.RunningTotal

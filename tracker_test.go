@@ -31,9 +31,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{
-					name: "foobar",
-				}: {
+				{}: {
 					RunningTotal: 100,
 					LatestValue:  100,
 				},
@@ -43,9 +41,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			name: "Higher Value Recorded",
 			fields: fields{
 				States: map[MetricIdentity]State{
-					{
-						name: "foobar",
-					}: {
+					{}: {
 						RunningTotal: 100,
 						LatestValue:  100,
 					},
@@ -58,9 +54,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{
-					name: "foobar",
-				}: {
+				{}: {
 					RunningTotal: 200,
 					LatestValue:  200,
 				},
@@ -70,9 +64,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			name: "Lower Value Recorded - No Offset",
 			fields: fields{
 				States: map[MetricIdentity]State{
-					{
-						name: "foobar",
-					}: {
+					{}: {
 						RunningTotal: 200,
 						LatestValue:  200,
 					},
@@ -85,9 +77,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{
-					name: "foobar",
-				}: {
+				{}: {
 					RunningTotal: 280,
 					LatestValue:  80,
 					Offset:       200,
@@ -98,9 +88,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			name: "Lower Value Recorded - With Existing Offset",
 			fields: fields{
 				States: map[MetricIdentity]State{
-					{
-						name: "foobar",
-					}: {
+					{}: {
 						RunningTotal: 280,
 						LatestValue:  80,
 						Offset:       200,
@@ -114,9 +102,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{
-					name: "foobar",
-				}: {
+				{}: {
 					RunningTotal: 300,
 					LatestValue:  20,
 					Offset:       280,
