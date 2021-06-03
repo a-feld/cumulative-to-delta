@@ -8,6 +8,7 @@ type MetricIdentity struct {
 
 type State struct {
 	CurrentValue     float64
+	LowestValue		 float64
 	LastFlushedValue float64
 }
 type Metric struct {
@@ -26,18 +27,26 @@ type MetricTracker struct {
 
 func (m *MetricTracker) Record(in Metric) {
 	value := in.Value
+	lowestValue := value
 	lastFlushed := 0.0
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	var delta float64
 	if state, ok := m.States[in.Identity()]; ok {
-		if value < state.CurrentValue {
-			value += state.CurrentValue
+		if value < state.LowestValue {
+			delta = value
+			lowestValue = value
+		} else {
+			delta = value - state.LowestValue
+			lowestValue = state.LowestValue
 		}
+		value = state.CurrentValue + delta
 		lastFlushed = state.LastFlushedValue
 	}
 	m.States[in.Identity()] = State{
 		CurrentValue:     value,
 		LastFlushedValue: lastFlushed,
+		LowestValue: lowestValue,
 	}
 }
 
