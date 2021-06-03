@@ -31,10 +31,9 @@ func (m *MetricTracker) Record(in Metric) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if state, ok := m.States[in.Identity()]; ok {
+		offset = state.Offset
 		if in.Value < state.CurrentValue {
-			offset = state.Offset + state.CurrentValue
-		} else {
-			offset = state.Offset
+			offset += state.CurrentValue
 		}
 		lastFlushed = state.LastFlushedValue
 	}
