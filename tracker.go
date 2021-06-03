@@ -7,8 +7,9 @@ type MetricIdentity struct {
 }
 
 type State struct {
+	CurrentTotal     float64
 	CurrentValue     float64
-	LowestValue		 float64
+	Offset           float64
 	LastFlushedValue float64
 }
 type Metric struct {
@@ -21,32 +22,28 @@ func (m Metric) Identity() MetricIdentity {
 }
 
 type MetricTracker struct {
-	mu            sync.Mutex
-	States        map[MetricIdentity]State
+	mu     sync.Mutex
+	States map[MetricIdentity]State
 }
 
 func (m *MetricTracker) Record(in Metric) {
-	value := in.Value
-	lowestValue := value
-	lastFlushed := 0.0
+	var total, lastFlushed, offset float64
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	var delta float64
 	if state, ok := m.States[in.Identity()]; ok {
-		if value < state.LowestValue {
-			delta = value
-			lowestValue = value
+		if in.Value < state.CurrentValue {
+			offset += state.CurrentValue
 		} else {
-			delta = value - state.LowestValue
-			lowestValue = state.LowestValue
+			offset = state.Offset
 		}
-		value = state.CurrentValue + delta
 		lastFlushed = state.LastFlushedValue
 	}
+	total = in.Value + offset
 	m.States[in.Identity()] = State{
-		CurrentValue:     value,
+		CurrentTotal:     total,
+		CurrentValue:     in.Value,
 		LastFlushedValue: lastFlushed,
-		LowestValue: lowestValue,
+		Offset:           offset,
 	}
 }
 
@@ -57,9 +54,9 @@ func (m *MetricTracker) Flush() []Metric {
 	for identity, state := range m.States {
 		metrics = append(metrics, Metric{
 			Name:  identity.name,
-			Value: state.CurrentValue - state.LastFlushedValue,
+			Value: state.CurrentTotal - state.LastFlushedValue,
 		})
-		state.LastFlushedValue = state.CurrentValue
+		state.LastFlushedValue = state.CurrentTotal
 	}
 	return metrics
 }

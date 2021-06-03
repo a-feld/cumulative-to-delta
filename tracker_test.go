@@ -68,9 +68,8 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentValue:     100,
-					LowestValue:      100,
-					LastFlushedValue: 0,
+					CurrentTotal: 100,
+					CurrentValue: 100,
 				},
 			},
 		},
@@ -81,9 +80,8 @@ func TestMetricTracker_Record(t *testing.T) {
 					{
 						name: "foobar",
 					}: {
-						CurrentValue:     100,
-						LowestValue:      100,
-						LastFlushedValue: 0,
+						CurrentTotal: 100,
+						CurrentValue: 100,
 					},
 				},
 			},
@@ -97,22 +95,20 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentValue:     200,
-					LowestValue:      100,
-					LastFlushedValue: 0,
+					CurrentTotal: 200,
+					CurrentValue: 200,
 				},
 			},
 		},
 		{
-			name: "Lower Value Recorded",
+			name: "Lower Value Recorded - No Offset",
 			fields: fields{
 				States: map[MetricIdentity]State{
 					{
 						name: "foobar",
 					}: {
-						CurrentValue:     200,
-						LowestValue:      100,
-						LastFlushedValue: 0,
+						CurrentTotal: 200,
+						CurrentValue: 200,
 					},
 				},
 			},
@@ -126,9 +122,38 @@ func TestMetricTracker_Record(t *testing.T) {
 				{
 					name: "foobar",
 				}: {
-					CurrentValue:     280,
-					LowestValue:      80,
-					LastFlushedValue: 0,
+					CurrentTotal: 280,
+					CurrentValue: 80,
+					Offset:       200,
+				},
+			},
+		},
+		{
+			name: "Lower Value Recorded - With Existing Offset",
+			fields: fields{
+				States: map[MetricIdentity]State{
+					{
+						name: "foobar",
+					}: {
+						CurrentTotal: 280,
+						CurrentValue: 80,
+						Offset:       200,
+					},
+				},
+			},
+			args: args{
+				in: Metric{
+					Name:  "foobar",
+					Value: 20,
+				},
+			},
+			want: map[MetricIdentity]State{
+				{
+					name: "foobar",
+				}: {
+					CurrentTotal: 300,
+					CurrentValue: 20,
+					Offset:       280,
 				},
 			},
 		},
@@ -149,7 +174,6 @@ func TestMetricTracker_Record(t *testing.T) {
 
 func TestMetricTracker_Flush(t *testing.T) {
 	type fields struct {
-		mu     sync.Mutex
 		States map[MetricIdentity]State
 	}
 	tests := []struct {
@@ -162,7 +186,7 @@ func TestMetricTracker_Flush(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MetricTracker{
-				mu:     tt.fields.mu,
+				mu:     sync.Mutex{},
 				States: tt.fields.States,
 			}
 			if got := m.Flush(); !reflect.DeepEqual(got, tt.want) {
