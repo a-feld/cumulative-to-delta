@@ -2,10 +2,6 @@ package cumulativetodelta
 
 import "sync"
 
-type MetricIdentity struct {
-	name string
-}
-
 type State struct {
 	RunningTotal float64
 	LatestValue  float64
@@ -17,10 +13,6 @@ type Metric struct {
 	Value float64
 }
 
-func (m Metric) Identity() MetricIdentity {
-	return MetricIdentity{name: m.Name}
-}
-
 type MetricTracker struct {
 	mu     sync.Mutex
 	States map[MetricIdentity]State
@@ -28,11 +20,13 @@ type MetricTracker struct {
 
 func (m *MetricTracker) Record(in Metric) {
 	var total, lastFlushed, offset float64
+	metricId := ComputeMetricIdentity(in)
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// Compute updated offset if applicable
-	if state, ok := m.States[in.Identity()]; ok {
+	if state, ok := m.States[metricId]; ok {
 		offset = state.Offset
 		if in.Value < state.LatestValue {
 			offset += state.LatestValue
@@ -46,7 +40,7 @@ func (m *MetricTracker) Record(in Metric) {
 	total = in.Value + offset
 
 	// Store state
-	m.States[in.Identity()] = State{
+	m.States[metricId] = State{
 		RunningTotal: total,
 		LatestValue:  in.Value,
 		LastFlushed:  lastFlushed,

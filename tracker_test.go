@@ -6,40 +6,6 @@ import (
 	"testing"
 )
 
-func TestMetric_Identity(t *testing.T) {
-	type fields struct {
-		Name  string
-		Value float64
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   MetricIdentity
-	}{
-		{
-			name: "Basic",
-			fields: fields{
-				Name:  "foobar",
-				Value: 100,
-			},
-			want: MetricIdentity{
-				name: "foobar",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := Metric{
-				Name:  tt.fields.Name,
-				Value: tt.fields.Value,
-			}
-			if got := m.Identity(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Metric.Identity() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestMetricTracker_Record(t *testing.T) {
 	type fields struct {
 		States map[MetricIdentity]State
