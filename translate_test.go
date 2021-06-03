@@ -57,7 +57,7 @@ func TestMetricAggregator_Record(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := MetricAggregator{
+			m := MetricTracker{
 				States: tt.fields.States,
 			}
 			m.Record(tt.args.in)
@@ -78,7 +78,7 @@ func TestMetricAggregator_Flush(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := MetricAggregator{
+			m := MetricTracker{
 				States: tt.fields.States,
 			}
 			if got := m.Flush(); !reflect.DeepEqual(got, tt.want) {

@@ -1,5 +1,7 @@
 package cumulativetodelta
 
+import "sync"
+
 type MetricIdentity struct {
 	name string
 }
@@ -17,25 +19,31 @@ func (m Metric) Identity() MetricIdentity {
 	return MetricIdentity{name: m.Name}
 }
 
-type MetricAggregator struct {
-	States map[MetricIdentity]State
+type MetricTracker struct {
+	mu            sync.Mutex
+	States        map[MetricIdentity]State
 }
 
-func (m MetricAggregator) Record(in Metric) {
-	// FIXME: this is not thread safe
-	lastValue := 0.0
-
-	if currentState, ok := m.States[in.Identity()]; ok {
-		lastValue = currentState.LastFlushedValue
+func (m *MetricTracker) Record(in Metric) {
+	value := in.Value
+	lastFlushed := 0.0
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if state, ok := m.States[in.Identity()]; ok {
+		if value < state.CurrentValue {
+			value += state.CurrentValue
+		}
+		lastFlushed = state.LastFlushedValue
 	}
 	m.States[in.Identity()] = State{
-		CurrentValue:     in.Value,
-		LastFlushedValue: lastValue,
+		CurrentValue:     value,
+		LastFlushedValue: lastFlushed,
 	}
 }
 
-func (m MetricAggregator) Flush() []Metric {
-	// FIXME: this is not thread safe
+func (m *MetricTracker) Flush() []Metric {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	metrics := make([]Metric, len(m.States), 0)
 	for identity, state := range m.States {
 		metrics = append(metrics, Metric{
