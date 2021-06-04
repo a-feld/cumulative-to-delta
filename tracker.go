@@ -16,6 +16,7 @@ type Metric struct {
 type MetricTracker struct {
 	mu     sync.Mutex
 	States map[MetricIdentity]State
+	Metrics map[MetricIdentity]*Metric
 }
 
 func (m *MetricTracker) Record(in Metric) {
@@ -25,6 +26,7 @@ func (m *MetricTracker) Record(in Metric) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.Metrics[metricId] = &in
 	// Compute updated offset if applicable
 	if state, ok := m.States[metricId]; ok {
 		offset = state.Offset
@@ -57,7 +59,7 @@ func (m *MetricTracker) Flush() []Metric {
 	metrics := make([]Metric, len(m.States), 0)
 	for identity, state := range m.States {
 		metrics = append(metrics, Metric{
-			Name:  identity.Name(),
+			Name:  m.Metrics[identity].Name,
 			Value: state.RunningTotal - state.LastFlushed,
 		})
 		state.LastFlushed = state.RunningTotal

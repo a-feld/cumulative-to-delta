@@ -6,9 +6,15 @@ import (
 	"testing"
 )
 
+var (
+	foobar   Metric         = Metric{Name: "foobar"}
+	foobarId MetricIdentity = ComputeMetricIdentity(foobar)
+)
+
 func TestMetricTracker_Record(t *testing.T) {
 	type fields struct {
-		States map[MetricIdentity]State
+		States  map[MetricIdentity]State
+		Metrics map[MetricIdentity]Metric
 	}
 	type args struct {
 		in Metric
@@ -31,7 +37,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{}: {
+				foobarId: {
 					RunningTotal: 100,
 					LatestValue:  100,
 				},
@@ -41,7 +47,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			name: "Higher Value Recorded",
 			fields: fields{
 				States: map[MetricIdentity]State{
-					{}: {
+					foobarId: {
 						RunningTotal: 100,
 						LatestValue:  100,
 					},
@@ -54,7 +60,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{}: {
+				foobarId: {
 					RunningTotal: 200,
 					LatestValue:  200,
 				},
@@ -64,7 +70,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			name: "Lower Value Recorded - No Offset",
 			fields: fields{
 				States: map[MetricIdentity]State{
-					{}: {
+					foobarId: {
 						RunningTotal: 200,
 						LatestValue:  200,
 					},
@@ -77,7 +83,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{}: {
+				foobarId: {
 					RunningTotal: 280,
 					LatestValue:  80,
 					Offset:       200,
@@ -88,7 +94,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			name: "Lower Value Recorded - With Existing Offset",
 			fields: fields{
 				States: map[MetricIdentity]State{
-					{}: {
+					foobarId: {
 						RunningTotal: 280,
 						LatestValue:  80,
 						Offset:       200,
@@ -102,7 +108,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				},
 			},
 			want: map[MetricIdentity]State{
-				{}: {
+				foobarId: {
 					RunningTotal: 300,
 					LatestValue:  20,
 					Offset:       280,
@@ -113,7 +119,10 @@ func TestMetricTracker_Record(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MetricTracker{
-				mu:     sync.Mutex{},
+				mu: sync.Mutex{},
+				Metrics: map[MetricIdentity]*Metric{
+					foobarId: &foobar,
+				},
 				States: tt.fields.States,
 			}
 			m.Record(tt.args.in)
@@ -138,7 +147,10 @@ func TestMetricTracker_Flush(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MetricTracker{
-				mu:     sync.Mutex{},
+				mu: sync.Mutex{},
+				Metrics: map[MetricIdentity]*Metric{
+					foobarId: &foobar,
+				},
 				States: tt.fields.States,
 			}
 			if got := m.Flush(); !reflect.DeepEqual(got, tt.want) {
