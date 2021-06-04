@@ -119,10 +119,7 @@ func TestMetricTracker_Record(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MetricTracker{
-				mu: sync.Mutex{},
-				Metrics: map[MetricIdentity]*Metric{
-					foobarId: &foobar,
-				},
+				mu:     sync.Mutex{},
 				States: tt.fields.States,
 			}
 			m.Record(tt.args.in)
@@ -147,10 +144,7 @@ func TestMetricTracker_Flush(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := &MetricTracker{
-				mu: sync.Mutex{},
-				Metrics: map[MetricIdentity]*Metric{
-					foobarId: &foobar,
-				},
+				mu:     sync.Mutex{},
 				States: tt.fields.States,
 			}
 			if got := m.Flush(); !reflect.DeepEqual(got, tt.want) {
