@@ -48,12 +48,10 @@ func TestMetricTracker_Record(t *testing.T) {
 			fields: fields{
 				States: func() sync.Map {
 					m := sync.Map{}
-					m.Store(foobarId, &State{
-						RunningTotal: 100,
-						LatestValue:  100,
-					})
+					m.Store(foobarId, &State{RunningTotal: 100, LatestValue: 100})
 					return m
 				}(),
+				Metrics: map[metricIdentity]Metric{},
 			},
 			args: args{
 				in: Metric{
@@ -99,13 +97,10 @@ func TestMetricTracker_Record(t *testing.T) {
 			fields: fields{
 				States: func() sync.Map {
 					m := sync.Map{}
-					m.Store(foobarId, &State{
-						RunningTotal: 280,
-						LatestValue:  80,
-						Offset:       200,
-					})
+					m.Store(foobarId, &State{RunningTotal: 280, LatestValue: 80, Offset: 200})
 					return m
 				}(),
+				Metrics: map[metricIdentity]Metric{},
 			},
 			args: args{
 				in: Metric{

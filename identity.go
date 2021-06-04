@@ -5,16 +5,17 @@ import (
 	"sync"
 )
 
-var metrics sync.Map = sync.Map{}
+var metrics *sync.Map = &sync.Map{}
 
 type metricIdentity struct {
 	hash uint64
 }
 
 func (i metricIdentity) Metric() *Metric {
-	v, _ := metrics.Load(i)
-	// This will panic if v is nil, which is expected behavior
-	// All calls to metrics.Load should succeed
+	v, ok := metrics.Load(i)
+	if !ok {
+		return nil
+	}
 	return v.(*Metric)
 }
 
