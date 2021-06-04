@@ -13,7 +13,7 @@ var (
 
 func TestMetricTracker_Record(t *testing.T) {
 	type fields struct {
-		States  map[MetricIdentity]State
+		States  map[MetricIdentity]*State
 		Metrics map[MetricIdentity]Metric
 	}
 	type args struct {
@@ -23,12 +23,12 @@ func TestMetricTracker_Record(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   map[MetricIdentity]State
+		want   map[MetricIdentity]*State
 	}{
 		{
 			name: "Initial Value Recorded",
 			fields: fields{
-				States: make(map[MetricIdentity]State),
+				States: make(map[MetricIdentity]*State),
 			},
 			args: args{
 				in: Metric{
@@ -36,7 +36,7 @@ func TestMetricTracker_Record(t *testing.T) {
 					Value: 100,
 				},
 			},
-			want: map[MetricIdentity]State{
+			want: map[MetricIdentity]*State{
 				foobarId: {
 					RunningTotal: 100,
 					LatestValue:  100,
@@ -46,7 +46,7 @@ func TestMetricTracker_Record(t *testing.T) {
 		{
 			name: "Higher Value Recorded",
 			fields: fields{
-				States: map[MetricIdentity]State{
+				States: map[MetricIdentity]*State{
 					foobarId: {
 						RunningTotal: 100,
 						LatestValue:  100,
@@ -59,7 +59,7 @@ func TestMetricTracker_Record(t *testing.T) {
 					Value: 200,
 				},
 			},
-			want: map[MetricIdentity]State{
+			want: map[MetricIdentity]*State{
 				foobarId: {
 					RunningTotal: 200,
 					LatestValue:  200,
@@ -69,7 +69,7 @@ func TestMetricTracker_Record(t *testing.T) {
 		{
 			name: "Lower Value Recorded - No Offset",
 			fields: fields{
-				States: map[MetricIdentity]State{
+				States: map[MetricIdentity]*State{
 					foobarId: {
 						RunningTotal: 200,
 						LatestValue:  200,
@@ -82,7 +82,7 @@ func TestMetricTracker_Record(t *testing.T) {
 					Value: 80,
 				},
 			},
-			want: map[MetricIdentity]State{
+			want: map[MetricIdentity]*State{
 				foobarId: {
 					RunningTotal: 280,
 					LatestValue:  80,
@@ -93,7 +93,7 @@ func TestMetricTracker_Record(t *testing.T) {
 		{
 			name: "Lower Value Recorded - With Existing Offset",
 			fields: fields{
-				States: map[MetricIdentity]State{
+				States: map[MetricIdentity]*State{
 					foobarId: {
 						RunningTotal: 280,
 						LatestValue:  80,
@@ -107,7 +107,7 @@ func TestMetricTracker_Record(t *testing.T) {
 					Value: 20,
 				},
 			},
-			want: map[MetricIdentity]State{
+			want: map[MetricIdentity]*State{
 				foobarId: {
 					RunningTotal: 300,
 					LatestValue:  20,
@@ -132,14 +132,34 @@ func TestMetricTracker_Record(t *testing.T) {
 
 func TestMetricTracker_Flush(t *testing.T) {
 	type fields struct {
-		States map[MetricIdentity]State
+		States map[MetricIdentity]*State
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		want   []Metric
 	}{
-		// TODO: Add test cases.
+		{
+			name: "empty",
+			want: []Metric{},
+		},
+		{
+			name: "single",
+			fields: fields{
+				States: map[MetricIdentity]*State{
+					foobarId: {
+						RunningTotal: 62,
+						LatestValue:  20,
+						Offset:       42,
+						LastFlushed:  0,
+					},
+				},
+			},
+			want: []Metric{{
+				Name:  "foobar",
+				Value: 62,
+			}},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -149,6 +169,13 @@ func TestMetricTracker_Flush(t *testing.T) {
 			}
 			if got := m.Flush(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("MetricTracker.Flush() = %v, want %v", got, tt.want)
+			}
+
+			for _, metric := range tt.want {
+				id := ComputeMetricIdentity(metric)
+				if !reflect.DeepEqual(0.0, m.States[id].RunningTotal-m.States[id].LastFlushed) {
+					t.Errorf("Post-Flush MetricTracker.States[%v] total - last flushed = %v, want 0", id, m.States[id].RunningTotal-m.States[id].LastFlushed)
+				}
 			}
 		})
 	}
