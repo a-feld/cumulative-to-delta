@@ -7,62 +7,61 @@ type State struct {
 	LatestValue  float64
 	Offset       float64
 	LastFlushed  float64
+	mu           sync.Mutex
 }
+
+func (s *State) Lock() {
+	s.mu.Lock()
+}
+
+func (s *State) Unlock() {
+	s.mu.Unlock()
+}
+
 type Metric struct {
 	Name  string
 	Value float64
 }
 
 type MetricTracker struct {
-	mu     sync.Mutex
-	States map[metricIdentity]*State
+	States sync.Map
 }
 
 func (m *MetricTracker) Record(in Metric) {
-	var total, lastFlushed, offset float64
 	metricId := ComputeMetricIdentity(in)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	s, _ := m.States.LoadOrStore(metricId, &State{mu: sync.Mutex{}})
+	state := s.(*State)
+	state.Lock()
+	defer state.Unlock()
 
 	// Compute updated offset if applicable
-	if state, ok := m.States[metricId]; ok {
-		offset = state.Offset
-		if in.Value < state.LatestValue {
-			offset += state.LatestValue
-		}
-
-		// input = output for new struct construction -- ignore this
-		lastFlushed = state.LastFlushed
+	if in.Value < state.LatestValue {
+		state.Offset += state.LatestValue
 	}
-
-	// Total = Add the input metric value with the offset
-	total = in.Value + offset
-
-	// Store state
-	m.States[metricId] = &State{
-		RunningTotal: total,
-		LatestValue:  in.Value,
-		LastFlushed:  lastFlushed,
-		Offset:       offset,
-	}
+	state.LatestValue = in.Value
+	state.RunningTotal = in.Value + state.Offset
 
 	// TODO: persist to disk
 }
 
 func (m *MetricTracker) Flush() []Metric {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	var metrics []Metric
 
-	metrics := make([]Metric, 0, len(m.States))
-	for identity, state := range m.States {
+	m.States.Range(func(key, value interface{}) bool {
+		identity := key.(metricIdentity)
+		state := value.(*State)
+		state.Lock()
+		defer state.Unlock()
+
 		metric := identity.Metric()
 		metrics = append(metrics, Metric{
 			Name:  metric.Name,
 			Value: state.RunningTotal - state.LastFlushed,
 		})
 		state.LastFlushed = state.RunningTotal
-	}
+		return true
+	})
+
 	// TODO: flush m.States to disk via json marshal
 	// Once Flush is called, any metric deltas are considered "sent"
 	return metrics
