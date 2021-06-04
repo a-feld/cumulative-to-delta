@@ -17,21 +17,19 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 		for j := 0; j < ilms.Len(); j++ {
 			ilm := ilms.At(j)
 			ms := ilm.Metrics()
-			for k := 0; k < ms.Len(); k++ {
-				m := ms.At(k)
+			ms.RemoveIf(func(m pdata.Metric) bool {
 				switch m.DataType() {
 				case pdata.MetricDataTypeIntSum:
-					m.IntSum().AggregationTemporality()
+					return m.IntSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative
 				case pdata.MetricDataTypeDoubleSum:
-					m.DoubleSum().DataPoints().Len()
+					return m.DoubleSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative
 				case pdata.MetricDataTypeIntHistogram:
-					m.IntHistogram().DataPoints().Len()
+					return m.IntHistogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative
 				case pdata.MetricDataTypeHistogram:
-					m.Histogram().DataPoints().Len()
-				default:
-					m.Summary().DataPoints().Len()
+					return m.Histogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative
 				}
-			}
+				return false
+			})
 		}
 	}
 	return md, nil
