@@ -7,22 +7,21 @@ import (
 
 var metrics sync.Map = sync.Map{}
 
-type MetricIdentity struct {
+type metricIdentity struct {
 	hash uint64
 }
 
-func (i MetricIdentity) Metric() *Metric {
-	v, ok := metrics.Load(i)
-	if !ok {
-		panic("Identity exists without an entry containing the original metric")
-	}
+func (i metricIdentity) Metric() *Metric {
+	v, _ := metrics.Load(i)
+	// This will panic if v is nil, which is expected behavior
+	// All calls to metrics.Load should succeed
 	return v.(*Metric)
 }
 
-func ComputeMetricIdentity(m Metric) MetricIdentity {
+func ComputeMetricIdentity(m Metric) metricIdentity {
 	h := fnv.New64a()
 	h.Write([]byte(m.Name))
-	i := MetricIdentity{hash: h.Sum64()}
+	i := metricIdentity{hash: h.Sum64()}
 	metrics.LoadOrStore(i, &m)
 	return i
 }

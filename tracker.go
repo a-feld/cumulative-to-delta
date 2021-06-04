@@ -15,7 +15,7 @@ type Metric struct {
 
 type MetricTracker struct {
 	mu     sync.Mutex
-	States map[MetricIdentity]*State
+	States map[metricIdentity]*State
 }
 
 func (m *MetricTracker) Record(in Metric) {
