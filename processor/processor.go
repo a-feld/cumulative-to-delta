@@ -1,20 +1,56 @@
 package processor
 
 import (
+	"bytes"
 	"context"
 
 	"go.opentelemetry.io/collector/consumer/pdata"
+	tracetranslator "go.opentelemetry.io/collector/translator/trace"
 )
 
 type processor struct {
-	cumulativeMetricChannel chan FlatMetric
+	cumulativeMetricChannel chan MetricIdentity
 }
 
-type FlatMetric struct {
+type MetricIdentity struct {
 	Resource               pdata.Resource
 	InstrumentationLibrary pdata.InstrumentationLibrary
 	Metric                 pdata.Metric
-	DataPoint              interface{}
+	LabelsMap              pdata.StringMap
+}
+
+func (mi *MetricIdentity) Identity() []byte {
+	h := bytes.Buffer{}
+	h.Write([]byte("r;"))
+	mi.Resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
+		h.Write([]byte(k))
+		h.Write([]byte(";"))
+		h.Write([]byte(tracetranslator.AttributeValueToString(v)))
+		h.Write([]byte(";"))
+		return true
+	})
+
+	h.Write([]byte(";i;"))
+	h.Write([]byte(mi.InstrumentationLibrary.Name()))
+	h.Write([]byte(";"))
+	h.Write([]byte(mi.InstrumentationLibrary.Version()))
+
+	h.Write([]byte(";m;"))
+	h.Write([]byte(mi.Metric.Name()))
+	h.Write([]byte(";"))
+	h.Write([]byte(mi.Metric.Description()))
+	h.Write([]byte(";"))
+	h.Write([]byte(mi.Metric.Unit()))
+
+	h.Write([]byte(";l;"))
+	mi.LabelsMap.Sort().Range(func(k, v string) bool {
+		h.Write([]byte(k))
+		h.Write([]byte(";"))
+		h.Write([]byte(v))
+		h.Write([]byte(";"))
+		return true
+	})
+	return h.Bytes()
 }
 
 func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.Metrics, error) {
@@ -35,11 +71,11 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.IntSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.IntSum().DataPoints().Len(); k++ {
 							dp := m.IntSum().DataPoints().At(k)
-							p.cumulativeMetricChannel <- FlatMetric{
+							p.cumulativeMetricChannel <- MetricIdentity{
 								Resource:               rm.Resource(),
 								InstrumentationLibrary: ilm.InstrumentationLibrary(),
 								Metric:                 m,
-								DataPoint:              &dp,
+								LabelsMap:              dp.LabelsMap(),
 							}
 						}
 						return true
@@ -48,11 +84,11 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.DoubleSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.DoubleSum().DataPoints().Len(); k++ {
 							dp := m.DoubleSum().DataPoints().At(k)
-							p.cumulativeMetricChannel <- FlatMetric{
+							p.cumulativeMetricChannel <- MetricIdentity{
 								Resource:               rm.Resource(),
 								InstrumentationLibrary: ilm.InstrumentationLibrary(),
 								Metric:                 m,
-								DataPoint:              &dp,
+								LabelsMap:              dp.LabelsMap(),
 							}
 						}
 						return true
@@ -61,11 +97,11 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.IntHistogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.IntHistogram().DataPoints().Len(); k++ {
 							dp := m.IntHistogram().DataPoints().At(k)
-							p.cumulativeMetricChannel <- FlatMetric{
+							p.cumulativeMetricChannel <- MetricIdentity{
 								Resource:               rm.Resource(),
 								InstrumentationLibrary: ilm.InstrumentationLibrary(),
 								Metric:                 m,
-								DataPoint:              &dp,
+								LabelsMap:              dp.LabelsMap(),
 							}
 						}
 						return true
@@ -74,11 +110,11 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.Histogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.Histogram().DataPoints().Len(); k++ {
 							dp := m.Histogram().DataPoints().At(k)
-							p.cumulativeMetricChannel <- FlatMetric{
+							p.cumulativeMetricChannel <- MetricIdentity{
 								Resource:               rm.Resource(),
 								InstrumentationLibrary: ilm.InstrumentationLibrary(),
 								Metric:                 m,
-								DataPoint:              &dp,
+								LabelsMap:              dp.LabelsMap(),
 							}
 						}
 						return true

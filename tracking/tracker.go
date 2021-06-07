@@ -18,11 +18,6 @@ func (s *State) Unlock() {
 	s.mu.Unlock()
 }
 
-type Metric struct {
-	Name  string
-	Value float64
-}
-
 type MetricTracker struct {
 	States sync.Map
 }
@@ -48,7 +43,7 @@ func (m *MetricTracker) Flush() []Metric {
 	var metrics []Metric
 
 	m.States.Range(func(key, value interface{}) bool {
-		identity := key.(metricIdentity)
+		identity := key.(MetricIdentity)
 		state := value.(*State)
 		state.Lock()
 		defer state.Unlock()
