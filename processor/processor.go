@@ -7,10 +7,10 @@ import (
 )
 
 type processor struct{
-	cumulativeMetricChannel chan []flatMetric
+	cumulativeMetricChannel chan FlatMetric
 }
 
-type flatMetric struct {
+type FlatMetric struct {
 	Resource               pdata.Resource
 	InstrumentationLibrary pdata.InstrumentationLibrary
 	Metric                 pdata.Metric
@@ -18,7 +18,6 @@ type flatMetric struct {
 
 func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.Metrics, error) {
 	rms := md.ResourceMetrics()
-	var cumulativeMetrics []flatMetric
 
 	for i := 0; i < rms.Len(); i++ {
 		rm := rms.At(i)
@@ -33,47 +32,44 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 				switch m.DataType() {
 				case pdata.MetricDataTypeIntSum:
 					if m.IntSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
-						cumulativeMetrics = append(cumulativeMetrics, flatMetric{
+						p.cumulativeMetricChannel <- FlatMetric{
 							Resource:               rm.Resource(),
 							InstrumentationLibrary: ilm.InstrumentationLibrary(),
 							Metric:                 m,
-						})
+						}
 						return true
 					}
 				case pdata.MetricDataTypeDoubleSum:
 					if m.DoubleSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
-						cumulativeMetrics = append(cumulativeMetrics, flatMetric{
+						p.cumulativeMetricChannel <- FlatMetric{
 							Resource:               rm.Resource(),
 							InstrumentationLibrary: ilm.InstrumentationLibrary(),
 							Metric:                 m,
-						})
+						}
 						return true
 					}
 				case pdata.MetricDataTypeIntHistogram:
 					if m.IntHistogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
-						cumulativeMetrics = append(cumulativeMetrics, flatMetric{
+						p.cumulativeMetricChannel <- FlatMetric{
 							Resource:               rm.Resource(),
 							InstrumentationLibrary: ilm.InstrumentationLibrary(),
 							Metric:                 m,
-						})
+						}
 						return true
 					}
 				case pdata.MetricDataTypeHistogram:
 					if m.Histogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
-						cumulativeMetrics = append(cumulativeMetrics, flatMetric{
+						p.cumulativeMetricChannel <- FlatMetric{
 							Resource:               rm.Resource(),
 							InstrumentationLibrary: ilm.InstrumentationLibrary(),
 							Metric:                 m,
-						})
+						}
 						return true
 					}
 				}
 				return false
 			})
 		}
-	}
-	if cumulativeMetrics != nil {
-		p.cumulativeMetricChannel <- cumulativeMetrics
 	}
 	return md, nil
 }

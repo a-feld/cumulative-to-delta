@@ -19,7 +19,7 @@ func (i metricIdentity) Metric() *Metric {
 	return v.(*Metric)
 }
 
-func ComputeMetricIdentity(m Metric) metricIdentity {
+func ComputeMetricIdentity(m FlatMetric) metricIdentity {
 	h := fnv.New64a()
 	h.Write([]byte(m.Name))
 	i := metricIdentity{hash: h.Sum64()}
