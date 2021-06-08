@@ -9,20 +9,20 @@ import (
 )
 
 type processor struct {
-	cumulativeMetricChannel chan MetricIdentity
+	dataPointChannel chan dataPoint
 }
 
-type MetricIdentity struct {
-	Resource               pdata.Resource
-	InstrumentationLibrary pdata.InstrumentationLibrary
-	Metric                 pdata.Metric
-	LabelsMap              pdata.StringMap
+type metricIdentity struct {
+	resource               pdata.Resource
+	instrumentationLibrary pdata.InstrumentationLibrary
+	metric                 pdata.Metric
+	labelsMap              pdata.StringMap
 }
 
-func (mi *MetricIdentity) Identity() []byte {
+func (mi *metricIdentity) Identity() []byte {
 	h := bytes.Buffer{}
 	h.Write([]byte("r;"))
-	mi.Resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
+	mi.resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
 		h.Write([]byte(k))
 		h.Write([]byte(";"))
 		h.Write([]byte(tracetranslator.AttributeValueToString(v)))
@@ -31,19 +31,19 @@ func (mi *MetricIdentity) Identity() []byte {
 	})
 
 	h.Write([]byte(";i;"))
-	h.Write([]byte(mi.InstrumentationLibrary.Name()))
+	h.Write([]byte(mi.instrumentationLibrary.Name()))
 	h.Write([]byte(";"))
-	h.Write([]byte(mi.InstrumentationLibrary.Version()))
+	h.Write([]byte(mi.instrumentationLibrary.Version()))
 
 	h.Write([]byte(";m;"))
-	h.Write([]byte(mi.Metric.Name()))
+	h.Write([]byte(mi.metric.Name()))
 	h.Write([]byte(";"))
-	h.Write([]byte(mi.Metric.Description()))
+	h.Write([]byte(mi.metric.Description()))
 	h.Write([]byte(";"))
-	h.Write([]byte(mi.Metric.Unit()))
+	h.Write([]byte(mi.metric.Unit()))
 
 	h.Write([]byte(";l;"))
-	mi.LabelsMap.Sort().Range(func(k, v string) bool {
+	mi.labelsMap.Sort().Range(func(k, v string) bool {
 		h.Write([]byte(k))
 		h.Write([]byte(";"))
 		h.Write([]byte(v))
@@ -51,6 +51,24 @@ func (mi *MetricIdentity) Identity() []byte {
 		return true
 	})
 	return h.Bytes()
+}
+
+type metricValue struct {
+	timestamp pdata.Timestamp
+	value     float64
+}
+
+func (mv metricValue) Timestamp() pdata.Timestamp {
+	return mv.timestamp
+}
+
+func (mv metricValue) Value() float64 {
+	return mv.value
+}
+
+type dataPoint struct {
+	identity metricIdentity
+	value    metricValue
 }
 
 func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.Metrics, error) {
@@ -71,11 +89,17 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.IntSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.IntSum().DataPoints().Len(); k++ {
 							dp := m.IntSum().DataPoints().At(k)
-							p.cumulativeMetricChannel <- MetricIdentity{
-								Resource:               rm.Resource(),
-								InstrumentationLibrary: ilm.InstrumentationLibrary(),
-								Metric:                 m,
-								LabelsMap:              dp.LabelsMap(),
+							p.dataPointChannel <- dataPoint{
+								identity: metricIdentity{
+									resource:               rm.Resource(),
+									instrumentationLibrary: ilm.InstrumentationLibrary(),
+									metric:                 m,
+									labelsMap:              dp.LabelsMap(),
+								},
+								value: metricValue{
+									timestamp: dp.Timestamp(),
+									value:     float64(dp.Value()),
+								},
 							}
 						}
 						return true
@@ -84,11 +108,17 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.DoubleSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.DoubleSum().DataPoints().Len(); k++ {
 							dp := m.DoubleSum().DataPoints().At(k)
-							p.cumulativeMetricChannel <- MetricIdentity{
-								Resource:               rm.Resource(),
-								InstrumentationLibrary: ilm.InstrumentationLibrary(),
-								Metric:                 m,
-								LabelsMap:              dp.LabelsMap(),
+							p.dataPointChannel <- dataPoint{
+								identity: metricIdentity{
+									resource:               rm.Resource(),
+									instrumentationLibrary: ilm.InstrumentationLibrary(),
+									metric:                 m,
+									labelsMap:              dp.LabelsMap(),
+								},
+								value: metricValue{
+									timestamp: dp.Timestamp(),
+									value:     dp.Value(),
+								},
 							}
 						}
 						return true
@@ -97,11 +127,17 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.IntHistogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.IntHistogram().DataPoints().Len(); k++ {
 							dp := m.IntHistogram().DataPoints().At(k)
-							p.cumulativeMetricChannel <- MetricIdentity{
-								Resource:               rm.Resource(),
-								InstrumentationLibrary: ilm.InstrumentationLibrary(),
-								Metric:                 m,
-								LabelsMap:              dp.LabelsMap(),
+							p.dataPointChannel <- dataPoint{
+								identity: metricIdentity{
+									resource:               rm.Resource(),
+									instrumentationLibrary: ilm.InstrumentationLibrary(),
+									metric:                 m,
+									labelsMap:              dp.LabelsMap(),
+								},
+								value: metricValue{
+									timestamp: dp.Timestamp(),
+									value:     0, // FIXME
+								},
 							}
 						}
 						return true
@@ -110,11 +146,17 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 					if m.Histogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.Histogram().DataPoints().Len(); k++ {
 							dp := m.Histogram().DataPoints().At(k)
-							p.cumulativeMetricChannel <- MetricIdentity{
-								Resource:               rm.Resource(),
-								InstrumentationLibrary: ilm.InstrumentationLibrary(),
-								Metric:                 m,
-								LabelsMap:              dp.LabelsMap(),
+							p.dataPointChannel <- dataPoint{
+								identity: metricIdentity{
+									resource:               rm.Resource(),
+									instrumentationLibrary: ilm.InstrumentationLibrary(),
+									metric:                 m,
+									labelsMap:              dp.LabelsMap(),
+								},
+								value: metricValue{
+									timestamp: dp.Timestamp(),
+									value:     0, // FIXME
+								},
 							}
 						}
 						return true
