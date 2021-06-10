@@ -3,15 +3,21 @@ package processor
 import (
 	"bytes"
 	"context"
+	"sync"
+	"time"
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/pdata"
 	tracetranslator "go.opentelemetry.io/collector/translator/trace"
+	"localhost.me/cumulative-to-delta/tracking"
 )
 
 type processor struct {
 	dataPointChannel chan dataPoint
+	goroutines       sync.WaitGroup
+	shutdownC        chan struct{}
+	tracker          tracking.MetricTracker
 }
 
 var _ component.MetricsProcessor = (*processor)(nil)
@@ -39,7 +45,7 @@ func (mi *metricIdentity) LabelsMap() pdata.StringMap {
 	return mi.labelsMap
 }
 
-func (mi *metricIdentity) Identity() []byte {
+func (mi *metricIdentity) Identity() string {
 	h := bytes.Buffer{}
 	h.Write([]byte("r;"))
 	mi.resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
@@ -70,7 +76,7 @@ func (mi *metricIdentity) Identity() []byte {
 		h.Write([]byte(";"))
 		return true
 	})
-	return h.Bytes()
+	return h.String()
 }
 
 type metricValue struct {
@@ -91,11 +97,11 @@ type dataPoint struct {
 	value    metricValue
 }
 
-func (dp dataPoint) Metadata() *metricIdentity {
+func (dp dataPoint) Metadata() tracking.MetricMetadata {
 	return &dp.identity
 }
 
-func (dp dataPoint) Identity() []byte {
+func (dp dataPoint) Identity() string {
 	return dp.identity.Identity()
 }
 
@@ -111,12 +117,29 @@ func (p processor) Capabilities() consumer.Capabilities {
 	return consumer.Capabilities{MutatesData: true}
 }
 
-func (p processor) Start(ctx context.Context, host component.Host) error {
+func (p *processor) Start(ctx context.Context, host component.Host) error {
+	p.goroutines.Add(1)
+	go p.startProcessingCycle()
 	return nil
 }
 
-func (p processor) Shutdown(ctx context.Context) error {
+func (p *processor) Shutdown(ctx context.Context) error {
+	close(p.shutdownC)
+	p.goroutines.Wait()
 	return nil
+}
+
+func (p *processor) startProcessingCycle() {
+	defer p.goroutines.Done()
+	for {
+	DONE:
+		select {
+		case dp := <-p.dataPointChannel:
+			p.tracker.Record(dp)
+		case <-p.shutdownC:
+			break DONE
+		}
+	}
 }
 
 func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
@@ -186,5 +209,15 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 }
 
 func createProcessor(cfg *Config) (*processor, error) {
-	return nil, nil
+	p := &processor{
+		dataPointChannel: make(chan dataPoint),
+		goroutines:       sync.WaitGroup{},
+		shutdownC:        make(chan struct{}),
+		tracker: tracking.MetricTracker{
+			LastFlushTime: pdata.TimestampFromTime(time.Now()),
+			States:        sync.Map{},
+			Metadata:      make(map[string]tracking.MetricMetadata),
+		},
+	}
+	return p, nil
 }
