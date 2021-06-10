@@ -14,10 +14,12 @@ import (
 )
 
 type processor struct {
+	nextConsumer     consumer.Metrics
 	dataPointChannel chan dataPoint
 	goroutines       sync.WaitGroup
 	shutdownC        chan struct{}
 	tracker          tracking.MetricTracker
+	flushInterval    time.Duration
 }
 
 var _ component.MetricsProcessor = (*processor)(nil)
@@ -131,12 +133,17 @@ func (p *processor) Shutdown(ctx context.Context) error {
 
 func (p *processor) startProcessingCycle() {
 	defer p.goroutines.Done()
+	flushTicker := time.NewTicker(p.flushInterval)
 	for {
 	DONE:
 		select {
 		case dp := <-p.dataPointChannel:
 			p.tracker.Record(dp)
+		case <-flushTicker.C:
+			metrics := p.tracker.Flush()
+			p.nextConsumer.ConsumeMetrics(context.Background(), metrics)
 		case <-p.shutdownC:
+			flushTicker.Stop()
 			break DONE
 		}
 	}
@@ -205,7 +212,7 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 			})
 		}
 	}
-	return nil
+	return p.nextConsumer.ConsumeMetrics(ctx, md)
 }
 
 func createProcessor(cfg *Config) (*processor, error) {

@@ -51,8 +51,8 @@ func (m *MetricTracker) Record(in DataPoint) {
 	// TODO: persist to disk
 }
 
-func (m *MetricTracker) Flush() pdata.ResourceMetricsSlice {
-	metrics := pdata.NewResourceMetricsSlice()
+func (m *MetricTracker) Flush() pdata.Metrics {
+	metrics := pdata.NewMetrics()
 	t := pdata.TimestampFromTime(time.Now())
 
 	m.States.Range(func(key, value interface{}) bool {
@@ -62,7 +62,7 @@ func (m *MetricTracker) Flush() pdata.ResourceMetricsSlice {
 		defer state.Unlock()
 
 		metadata := m.Metadata[identity]
-		rms := metrics.AppendEmpty()
+		rms := metrics.ResourceMetrics().AppendEmpty()
 		metadata.Resource().CopyTo(rms.Resource())
 
 		ilms := rms.InstrumentationLibraryMetrics().AppendEmpty()
