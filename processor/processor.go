@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/pdata"
 	tracetranslator "go.opentelemetry.io/collector/translator/trace"
-	"localhost.me/cumulative-to-delta/tracking"
+	"me.localhost/cumulative-to-delta/tracking"
 )
 
 type processor struct {
