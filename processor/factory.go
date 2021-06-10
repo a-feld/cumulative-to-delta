@@ -38,9 +38,5 @@ func createMetricsProcessor(
 	if err != nil {
 		return nil, err
 	}
-	return processorhelper.NewMetricsProcessor(
-		cfg,
-		nextConsumer,
-		processor,
-		processorhelper.WithCapabilities(processorCapabilities))
+	return processor, nil
 }

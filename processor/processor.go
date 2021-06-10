@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 
+	"go.opentelemetry.io/collector/component"
+	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/pdata"
 	tracetranslator "go.opentelemetry.io/collector/translator/trace"
 )
@@ -11,6 +13,8 @@ import (
 type processor struct {
 	dataPointChannel chan dataPoint
 }
+
+var _ component.MetricsProcessor = (*processor)(nil)
 
 type metricIdentity struct {
 	resource               pdata.Resource
@@ -103,7 +107,19 @@ func (dp dataPoint) Value() interface{} {
 	return dp.value.Value()
 }
 
-func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.Metrics, error) {
+func (p processor) Capabilities() consumer.Capabilities {
+	return consumer.Capabilities{MutatesData: true}
+}
+
+func (p processor) Start(ctx context.Context, host component.Host) error {
+	return nil
+}
+
+func (p processor) Shutdown(ctx context.Context) error {
+	return nil
+}
+
+func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 	rms := md.ResourceMetrics()
 
 	for i := 0; i < rms.Len(); i++ {
@@ -166,7 +182,7 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 			})
 		}
 	}
-	return md, nil
+	return nil
 }
 
 func createProcessor(cfg *Config) (*processor, error) {
