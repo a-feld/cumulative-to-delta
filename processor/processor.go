@@ -226,7 +226,7 @@ func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, er
 			States:        sync.Map{},
 			Metadata:      make(map[string]tracking.MetricMetadata),
 		},
-		flushInterval: 60,
+		flushInterval: 60 * time.Second,
 	}
 	return p, nil
 }
