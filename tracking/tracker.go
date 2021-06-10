@@ -1,6 +1,11 @@
 package tracking
 
-import "sync"
+import (
+	"sync"
+	"time"
+
+	"go.opentelemetry.io/collector/consumer/pdata"
+)
 
 type State struct {
 	RunningTotal float64
@@ -19,43 +24,67 @@ func (s *State) Unlock() {
 }
 
 type MetricTracker struct {
-	States sync.Map
+	LastFlushTime pdata.Timestamp
+	States        sync.Map
+	Metadata      map[string]MetricMetadata
 }
 
-func (m *MetricTracker) Record(in Metric) {
-	metricId := ComputeMetricIdentity(in)
-	s, _ := m.States.LoadOrStore(metricId, &State{mu: sync.Mutex{}})
+func (m *MetricTracker) Record(in DataPoint) {
+	metricId := in.Identity()
+	s, ok := m.States.LoadOrStore(metricId, &State{mu: sync.Mutex{}})
 	state := s.(*State)
 	state.Lock()
 	defer state.Unlock()
 
+	if !ok {
+		m.Metadata[metricId] = in.Metadata()
+	}
+
 	// Compute updated offset if applicable
-	if in.Value < state.LatestValue {
+	value := in.Value().(float64)
+	if value < state.LatestValue {
 		state.Offset += state.LatestValue
 	}
-	state.LatestValue = in.Value
-	state.RunningTotal = in.Value + state.Offset
+	state.LatestValue = value
+	state.RunningTotal = value + state.Offset
 
 	// TODO: persist to disk
 }
 
-func (m *MetricTracker) Flush() []Metric {
-	var metrics []Metric
+func (m *MetricTracker) Flush() pdata.ResourceMetricsSlice {
+	metrics := pdata.NewResourceMetricsSlice()
+	t := pdata.TimestampFromTime(time.Now())
 
 	m.States.Range(func(key, value interface{}) bool {
-		identity := key.(MetricIdentity)
+		identity := key.(string)
 		state := value.(*State)
 		state.Lock()
 		defer state.Unlock()
 
-		metric := identity.Metric()
-		metrics = append(metrics, Metric{
-			Name:  metric.Name,
-			Value: state.RunningTotal - state.LastFlushed,
-		})
+		metadata := m.Metadata[identity]
+		rms := metrics.AppendEmpty()
+		metadata.Resource().CopyTo(rms.Resource())
+
+		ilms := rms.InstrumentationLibraryMetrics().AppendEmpty()
+		metadata.InstrumentationLibrary().CopyTo(ilms.InstrumentationLibrary())
+
+		ms := ilms.Metrics()
+		me := metadata.Metric()
+		ms.Append(me)
+
+		v := state.RunningTotal - state.LastFlushed
+
+		dp := me.DoubleSum().DataPoints().AppendEmpty()
+		dp.SetStartTimestamp(m.LastFlushTime)
+		dp.SetTimestamp(t)
+		dp.SetValue(v)
+		metadata.LabelsMap().CopyTo(dp.LabelsMap())
+
 		state.LastFlushed = state.RunningTotal
 		return true
 	})
+
+	m.LastFlushTime = t
 
 	// TODO: flush m.States to disk via json marshal
 	// Once Flush is called, any metric deltas are considered "sent"

@@ -1,6 +1,7 @@
 package tracking
 
 type DataPoint interface {
-	Identity() MetricIdentity
-	Value() MetricValue
+	MetricIdentity
+	MetricValue
+	Metadata() MetricMetadata
 }

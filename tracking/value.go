@@ -6,5 +6,12 @@ import (
 
 type MetricValue interface {
 	Timestamp() pdata.Timestamp
-	Value() float64
+	Value() interface{}
+}
+
+type HistogramValue interface {
+	Count() uint64
+	Sum() interface{} // can be float or int
+	BucketCounts() []uint64
+	ExplicitBounds() []float64
 }

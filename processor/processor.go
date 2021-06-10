@@ -19,6 +19,22 @@ type metricIdentity struct {
 	labelsMap              pdata.StringMap
 }
 
+func (mi *metricIdentity) Resource() pdata.Resource {
+	return mi.resource
+}
+
+func (mi *metricIdentity) InstrumentationLibrary() pdata.InstrumentationLibrary {
+	return mi.instrumentationLibrary
+}
+
+func (mi *metricIdentity) Metric() pdata.Metric {
+	return mi.metric
+}
+
+func (mi *metricIdentity) LabelsMap() pdata.StringMap {
+	return mi.labelsMap
+}
+
 func (mi *metricIdentity) Identity() []byte {
 	h := bytes.Buffer{}
 	h.Write([]byte("r;"))
@@ -55,20 +71,36 @@ func (mi *metricIdentity) Identity() []byte {
 
 type metricValue struct {
 	timestamp pdata.Timestamp
-	value     float64
+	value     interface{}
 }
 
 func (mv metricValue) Timestamp() pdata.Timestamp {
 	return mv.timestamp
 }
 
-func (mv metricValue) Value() float64 {
+func (mv metricValue) Value() interface{} {
 	return mv.value
 }
 
 type dataPoint struct {
 	identity metricIdentity
 	value    metricValue
+}
+
+func (dp dataPoint) Metadata() *metricIdentity {
+	return &dp.identity
+}
+
+func (dp dataPoint) Identity() []byte {
+	return dp.identity.Identity()
+}
+
+func (dp dataPoint) Timestamp() pdata.Timestamp {
+	return dp.value.Timestamp()
+}
+
+func (dp dataPoint) Value() interface{} {
+	return dp.value.Value()
 }
 
 func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.Metrics, error) {
@@ -98,7 +130,7 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 								},
 								value: metricValue{
 									timestamp: dp.Timestamp(),
-									value:     float64(dp.Value()),
+									value:     dp.Value(),
 								},
 							}
 						}
@@ -124,43 +156,11 @@ func (p processor) ProcessMetrics(ctx context.Context, md pdata.Metrics) (pdata.
 						return true
 					}
 				case pdata.MetricDataTypeIntHistogram:
-					if m.IntHistogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
-						for k := 0; k < m.IntHistogram().DataPoints().Len(); k++ {
-							dp := m.IntHistogram().DataPoints().At(k)
-							p.dataPointChannel <- dataPoint{
-								identity: metricIdentity{
-									resource:               rm.Resource(),
-									instrumentationLibrary: ilm.InstrumentationLibrary(),
-									metric:                 m,
-									labelsMap:              dp.LabelsMap(),
-								},
-								value: metricValue{
-									timestamp: dp.Timestamp(),
-									value:     0, // FIXME
-								},
-							}
-						}
-						return true
-					}
+					// TODO: implement
+					return true
 				case pdata.MetricDataTypeHistogram:
-					if m.Histogram().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
-						for k := 0; k < m.Histogram().DataPoints().Len(); k++ {
-							dp := m.Histogram().DataPoints().At(k)
-							p.dataPointChannel <- dataPoint{
-								identity: metricIdentity{
-									resource:               rm.Resource(),
-									instrumentationLibrary: ilm.InstrumentationLibrary(),
-									metric:                 m,
-									labelsMap:              dp.LabelsMap(),
-								},
-								value: metricValue{
-									timestamp: dp.Timestamp(),
-									value:     0, // FIXME
-								},
-							}
-						}
-						return true
-					}
+					// TODO: implement
+					return true
 				}
 				return false
 			})
