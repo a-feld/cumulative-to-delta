@@ -37,7 +37,8 @@ func (m *MetricTracker) Record(in DataPoint) {
 	defer state.Unlock()
 
 	if !ok {
-		m.Metadata[metricId] = in.Metadata()
+		metadata := in.Metadata()
+		m.Metadata[metricId] = metadata
 	}
 
 	// Compute updated offset if applicable
@@ -69,7 +70,8 @@ func (m *MetricTracker) Flush() pdata.Metrics {
 		metadata.InstrumentationLibrary().CopyTo(ilms.InstrumentationLibrary())
 
 		ms := ilms.Metrics()
-		me := metadata.Metric()
+		me := pdata.NewMetric()
+		metadata.Metric().CopyTo(me)
 		ms.Append(me)
 
 		v := state.RunningTotal - state.LastFlushed

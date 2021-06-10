@@ -164,6 +164,10 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 			ms.RemoveIf(func(m pdata.Metric) bool {
 				switch m.DataType() {
 				case pdata.MetricDataTypeIntSum:
+					me := pdata.NewMetric()
+					m.CopyTo(me)
+					me.IntSum().DataPoints().RemoveIf(func(idp pdata.IntDataPoint) bool { return true })
+					me.IntSum().SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 					if m.IntSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.IntSum().DataPoints().Len(); k++ {
 							dp := m.IntSum().DataPoints().At(k)
@@ -171,7 +175,7 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 								identity: metricIdentity{
 									resource:               rm.Resource(),
 									instrumentationLibrary: ilm.InstrumentationLibrary(),
-									metric:                 m,
+									metric:                 me,
 									labelsMap:              dp.LabelsMap(),
 								},
 								value: metricValue{
@@ -183,6 +187,10 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 						return true
 					}
 				case pdata.MetricDataTypeDoubleSum:
+					me := pdata.NewMetric()
+					m.CopyTo(me)
+					me.DoubleSum().DataPoints().RemoveIf(func(ddp pdata.DoubleDataPoint) bool { return true })
+					me.DoubleSum().SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 					if m.DoubleSum().AggregationTemporality() == pdata.AggregationTemporalityCumulative {
 						for k := 0; k < m.DoubleSum().DataPoints().Len(); k++ {
 							dp := m.DoubleSum().DataPoints().At(k)
@@ -190,7 +198,7 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 								identity: metricIdentity{
 									resource:               rm.Resource(),
 									instrumentationLibrary: ilm.InstrumentationLibrary(),
-									metric:                 m,
+									metric:                 me,
 									labelsMap:              dp.LabelsMap(),
 								},
 								value: metricValue{
@@ -226,7 +234,7 @@ func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, er
 			States:        sync.Map{},
 			Metadata:      make(map[string]tracking.MetricMetadata),
 		},
-		flushInterval: 60 * time.Second,
+		flushInterval: 10 * time.Second,
 	}
 	return p, nil
 }
