@@ -215,8 +215,9 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 	return p.nextConsumer.ConsumeMetrics(ctx, md)
 }
 
-func createProcessor(cfg *Config) (*processor, error) {
+func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, error) {
 	p := &processor{
+		nextConsumer:     nextConsumer,
 		dataPointChannel: make(chan dataPoint),
 		goroutines:       sync.WaitGroup{},
 		shutdownC:        make(chan struct{}),
@@ -225,6 +226,7 @@ func createProcessor(cfg *Config) (*processor, error) {
 			States:        sync.Map{},
 			Metadata:      make(map[string]tracking.MetricMetadata),
 		},
+		flushInterval: 60,
 	}
 	return p, nil
 }

@@ -26,15 +26,17 @@ func NewFactory() component.ProcessorFactory {
 }
 
 func createDefaultConfig() config.Processor {
-	return &Config{}
+	return &Config{
+		ProcessorSettings: config.NewProcessorSettings(config.NewID(typeStr)),
+	}
 }
 
 func createMetricsProcessor(
 	_ context.Context,
-	_ component.ProcessorCreateParams,
+	_ component.ProcessorCreateSettings,
 	cfg config.Processor,
 	nextConsumer consumer.Metrics) (component.MetricsProcessor, error) {
-	processor, err := createProcessor(cfg.(*Config))
+	processor, err := createProcessor(cfg.(*Config), nextConsumer)
 	if err != nil {
 		return nil, err
 	}
