@@ -47,35 +47,40 @@ func (mi *metricIdentity) LabelsMap() pdata.StringMap {
 	return mi.labelsMap
 }
 
+// Derived from counting the minimum required length of the strings being
+// written to an identity
+const initialBytes = 14
+
 func (mi *metricIdentity) Identity() string {
 	h := bytes.Buffer{}
-	h.Write([]byte("r;"))
+	h.Grow(initialBytes)
+	h.WriteString("r;")
 	mi.resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
-		h.Write([]byte(k))
-		h.Write([]byte(";"))
-		h.Write([]byte(tracetranslator.AttributeValueToString(v)))
-		h.Write([]byte(";"))
+		h.WriteString(k)
+		h.WriteString(";")
+		h.WriteString(tracetranslator.AttributeValueToString(v))
+		h.WriteString(";")
 		return true
 	})
 
-	h.Write([]byte(";i;"))
-	h.Write([]byte(mi.instrumentationLibrary.Name()))
-	h.Write([]byte(";"))
-	h.Write([]byte(mi.instrumentationLibrary.Version()))
+	h.WriteString(";i;")
+	h.WriteString(mi.instrumentationLibrary.Name())
+	h.WriteString(";")
+	h.WriteString(mi.instrumentationLibrary.Version())
 
-	h.Write([]byte(";m;"))
-	h.Write([]byte(mi.metric.Name()))
-	h.Write([]byte(";"))
-	h.Write([]byte(mi.metric.Description()))
-	h.Write([]byte(";"))
-	h.Write([]byte(mi.metric.Unit()))
+	h.WriteString(";m;")
+	h.WriteString(mi.metric.Name())
+	h.WriteString(";")
+	h.WriteString(mi.metric.Description())
+	h.WriteString(";")
+	h.WriteString(mi.metric.Unit())
 
-	h.Write([]byte(";l;"))
+	h.WriteString(";l;")
 	mi.labelsMap.Sort().Range(func(k, v string) bool {
-		h.Write([]byte(k))
-		h.Write([]byte(";"))
-		h.Write([]byte(v))
-		h.Write([]byte(";"))
+		h.WriteString(k)
+		h.WriteString(";")
+		h.WriteString(v)
+		h.WriteString(";")
 		return true
 	})
 	return h.String()
