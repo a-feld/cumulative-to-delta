@@ -8,11 +8,12 @@ import (
 )
 
 type State struct {
-	RunningTotal float64
-	LatestValue  float64
-	Offset       float64
-	LastFlushed  float64
-	mu           sync.Mutex
+	Identity        MetricIdentity
+	TotalCumulative interface{}
+	LatestValue     interface{}
+	Offset          interface{}
+	LastFlushed     interface{}
+	mu              sync.Mutex
 }
 
 func (s *State) Lock() {
@@ -26,28 +27,38 @@ func (s *State) Unlock() {
 type MetricTracker struct {
 	LastFlushTime pdata.Timestamp
 	States        sync.Map
-	Metadata      map[string]MetricMetadata
 }
 
 func (m *MetricTracker) Record(in DataPoint) {
 	metricId := in.Identity()
-	s, ok := m.States.LoadOrStore(metricId, &State{mu: sync.Mutex{}})
+	hashableId := metricId.AsString()
+	s, _ := m.States.LoadOrStore(hashableId, &State{Identity: metricId, mu: sync.Mutex{}})
 	state := s.(*State)
 	state.Lock()
 	defer state.Unlock()
 
-	if !ok {
-		metadata := in.Metadata()
-		m.Metadata[metricId] = metadata
-	}
-
 	// Compute updated offset if applicable
-	value := in.Value().(float64)
-	if value < state.LatestValue {
-		state.Offset += state.LatestValue
+	switch metricId.Metric().DataType() {
+	case pdata.MetricDataTypeSum:
+		// Convert state values to float64
+		offset := state.Offset.(float64)
+		value := in.Value().(float64)
+		latestValue := state.LatestValue.(float64)
+
+		// Detect reset on a monotonic counter
+		if value < latestValue {
+			offset += latestValue
+		}
+
+		// Update the total cumulative count
+		// Delta will be computed as totalCumulative - lastCumulative
+		totalCumulative := value + offset
+
+		// Store state values
+		state.Offset = offset
+		state.LatestValue = value
+		state.TotalCumulative = totalCumulative
 	}
-	state.LatestValue = value
-	state.RunningTotal = value + state.Offset
 
 	// TODO: persist to disk
 }
@@ -56,32 +67,35 @@ func (m *MetricTracker) Flush() pdata.Metrics {
 	metrics := pdata.NewMetrics()
 	t := pdata.TimestampFromTime(time.Now())
 
-	m.States.Range(func(key, value interface{}) bool {
-		identity := key.(string)
+	m.States.Range(func(_, value interface{}) bool {
 		state := value.(*State)
 		state.Lock()
 		defer state.Unlock()
 
-		metadata := m.Metadata[identity]
+		identity := state.Identity
 		rms := metrics.ResourceMetrics().AppendEmpty()
-		metadata.Resource().CopyTo(rms.Resource())
+		identity.Resource().CopyTo(rms.Resource())
 
 		ilms := rms.InstrumentationLibraryMetrics().AppendEmpty()
-		metadata.InstrumentationLibrary().CopyTo(ilms.InstrumentationLibrary())
+		identity.InstrumentationLibrary().CopyTo(ilms.InstrumentationLibrary())
 
 		ms := ilms.Metrics()
 		me := ms.AppendEmpty()
-		metadata.Metric().CopyTo(me)
+		identity.Metric().CopyTo(me)
 
-		v := state.RunningTotal - state.LastFlushed
+		switch me.DataType() {
+		case pdata.MetricDataTypeSum:
+			totalCumulative := state.TotalCumulative.(float64)
+			lastFlushed := state.LastFlushed.(float64)
+			v := totalCumulative - lastFlushed
+			dp := me.Sum().DataPoints().AppendEmpty()
+			dp.SetStartTimestamp(m.LastFlushTime)
+			dp.SetTimestamp(t)
+			dp.SetValue(v)
+			identity.LabelsMap().CopyTo(dp.LabelsMap())
+		}
 
-		dp := me.Sum().DataPoints().AppendEmpty()
-		dp.SetStartTimestamp(m.LastFlushTime)
-		dp.SetTimestamp(t)
-		dp.SetValue(v)
-		metadata.LabelsMap().CopyTo(dp.LabelsMap())
-
-		state.LastFlushed = state.RunningTotal
+		state.LastFlushed = state.TotalCumulative
 		return true
 	})
 

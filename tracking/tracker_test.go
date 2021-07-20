@@ -48,7 +48,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			fields: fields{
 				States: func() sync.Map {
 					m := sync.Map{}
-					m.Store(foobarId, &State{RunningTotal: 100, LatestValue: 100})
+					m.Store(foobarId, &State{TotalCumulative: 100, LatestValue: 100})
 					return m
 				}(),
 				Metrics: map[metricIdentity]Metric{},
@@ -72,7 +72,7 @@ func TestMetricTracker_Record(t *testing.T) {
 				States: func() sync.Map {
 					m := sync.Map{}
 					m.Store(foobarId, &State{
-						RunningTotal: 200,
+						TotalCumulative: 200,
 						LatestValue:  200,
 					})
 					return m
@@ -97,7 +97,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			fields: fields{
 				States: func() sync.Map {
 					m := sync.Map{}
-					m.Store(foobarId, &State{RunningTotal: 280, LatestValue: 80, Offset: 200})
+					m.Store(foobarId, &State{TotalCumulative: 280, LatestValue: 80, Offset: 200})
 					return m
 				}(),
 				Metrics: map[metricIdentity]Metric{},
@@ -156,7 +156,7 @@ func TestMetricTracker_Flush(t *testing.T) {
 				States: func() sync.Map {
 					m := sync.Map{}
 					m.Store(foobarId, &State{
-						RunningTotal: 62,
+						TotalCumulative: 62,
 						LatestValue:  20,
 						Offset:       42,
 						LastFlushed:  0,
@@ -181,8 +181,8 @@ func TestMetricTracker_Flush(t *testing.T) {
 
 			for _, metric := range tt.want {
 				id := ComputeMetricIdentity(metric)
-				if s, _ := m.States.Load(id); !reflect.DeepEqual(0.0, s.(*State).RunningTotal-s.(*State).LastFlushed) {
-					t.Errorf("Post-Flush MetricTracker.States[%v] total - last flushed = %v, want 0", id, s.(*State).RunningTotal-s.(*State).LastFlushed)
+				if s, _ := m.States.Load(id); !reflect.DeepEqual(0.0, s.(*State).TotalCumulative-s.(*State).LastFlushed) {
+					t.Errorf("Post-Flush MetricTracker.States[%v] total - last flushed = %v, want 0", id, s.(*State).TotalCumulative-s.(*State).LastFlushed)
 				}
 			}
 		})
