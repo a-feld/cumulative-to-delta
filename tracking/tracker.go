@@ -34,11 +34,20 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	metricPoint := in.Point
 
 	hashableId := metricId.AsString()
-	s, _ := m.States.LoadOrStore(hashableId, &State{
+	s, ok := m.States.LoadOrStore(hashableId, &State{
 		Identity:    metricId,
 		mu:          sync.Mutex{},
 		LatestPoint: metricPoint,
 	})
+
+	if !ok {
+		out = DeltaValue{
+			StartTimestamp: metricPoint.ObservedTimestamp,
+			Value:          metricPoint.Value,
+		}
+		return
+	}
+
 	state := s.(*State)
 	state.Lock()
 	defer state.Unlock()
@@ -46,21 +55,18 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	switch metricId.Metric.DataType() {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
-		value := metricPoint.Value().(float64)
-		latestValue := state.LatestPoint.Value().(float64)
+		value := metricPoint.Value.(float64)
+		latestValue := state.LatestPoint.Value.(float64)
 
 		// Detect reset on a monotonic counter
-		offset := 0.0
+		delta := value - latestValue
 		if value < latestValue {
-			offset = latestValue
+			delta = value
 		}
 
-		// Update the total cumulative count
-		// Delta will be computed as currentCumulative - lastCumulative
-		currentCumulative := value + offset
 		out = DeltaValue{
-			StartTimestamp: state.LatestPoint.ObservedTimestamp(),
-			Value:          currentCumulative - latestValue,
+			StartTimestamp: state.LatestPoint.ObservedTimestamp,
+			Value:          delta,
 		}
 
 		// Store state values

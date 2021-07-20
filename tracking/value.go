@@ -4,9 +4,9 @@ import (
 	"go.opentelemetry.io/collector/model/pdata"
 )
 
-type MetricPoint interface {
-	ObservedTimestamp() pdata.Timestamp
-	Value() interface{}
+type MetricPoint struct {
+	ObservedTimestamp pdata.Timestamp
+	Value             interface{}
 }
 
 type HistogramValue interface {
