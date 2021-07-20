@@ -8,12 +8,12 @@ import (
 )
 
 type State struct {
-	Identity        MetricIdentity
-	TotalCumulative interface{}
-	LatestValue     interface{}
-	Offset          interface{}
-	LastFlushed     interface{}
-	mu              sync.Mutex
+	Identity          MetricIdentity
+	CurrentCumulative interface{}
+	LastCumulative    interface{}
+	LatestValue       interface{}
+	Offset            interface{}
+	mu                sync.Mutex
 }
 
 func (s *State) Lock() {
@@ -57,7 +57,7 @@ func (m *MetricTracker) Record(in DataPoint) {
 		// Store state values
 		state.Offset = offset
 		state.LatestValue = value
-		state.TotalCumulative = totalCumulative
+		state.CurrentCumulative = totalCumulative
 	}
 
 	// TODO: persist to disk
@@ -85,9 +85,9 @@ func (m *MetricTracker) Flush() pdata.Metrics {
 
 		switch me.DataType() {
 		case pdata.MetricDataTypeSum:
-			totalCumulative := state.TotalCumulative.(float64)
-			lastFlushed := state.LastFlushed.(float64)
-			v := totalCumulative - lastFlushed
+			currentCumulative := state.CurrentCumulative.(float64)
+			lastCumulative := state.LastCumulative.(float64)
+			v := currentCumulative - lastCumulative
 			dp := me.Sum().DataPoints().AppendEmpty()
 			dp.SetStartTimestamp(m.LastFlushTime)
 			dp.SetTimestamp(t)
@@ -95,7 +95,7 @@ func (m *MetricTracker) Flush() pdata.Metrics {
 			identity.LabelsMap().CopyTo(dp.LabelsMap())
 		}
 
-		state.LastFlushed = state.TotalCumulative
+		state.LastCumulative = state.CurrentCumulative
 		return true
 	})
 
