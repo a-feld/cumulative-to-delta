@@ -4,7 +4,7 @@ import (
 	"go.opentelemetry.io/collector/model/pdata"
 )
 
-type MetricValue interface {
+type MetricPoint interface {
 	Timestamp() pdata.Timestamp
 	Value() interface{}
 }
