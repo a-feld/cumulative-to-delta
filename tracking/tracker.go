@@ -60,7 +60,7 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 
 		// Detect reset on a monotonic counter
 		delta := value - latestValue
-		if value < latestValue {
+		if metricId.Metric.Sum().IsMonotonic() && value < latestValue {
 			delta = value
 		}
 

@@ -11,6 +11,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 	metric := pdata.NewMetric()
 	metric.SetDataType(pdata.MetricDataTypeSum)
 	metric.Sum().SetAggregationTemporality(pdata.AggregationTemporalityCumulative)
+	metric.Sum().SetIsMonotonic(true)
 
 	mi := MetricIdentity{
 		Resource:               pdata.NewResource(),
