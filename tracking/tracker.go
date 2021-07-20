@@ -52,12 +52,12 @@ func (m *MetricTracker) Record(in DataPoint) {
 
 		// Update the total cumulative count
 		// Delta will be computed as totalCumulative - lastCumulative
-		totalCumulative := value + offset
+		currentCumulative := value + offset
 
 		// Store state values
 		state.Offset = offset
 		state.LatestValue = value
-		state.CurrentCumulative = totalCumulative
+		state.CurrentCumulative = currentCumulative
 	}
 
 	// TODO: persist to disk
