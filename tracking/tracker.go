@@ -62,6 +62,9 @@ func (m *MetricTracker) Record(in DataPoint) {
 		state.Offset = offset
 		state.LatestValue = value
 		state.CurrentCumulative = currentCumulative
+	default:
+		state.Valid = false
+		m.States.Delete(hashableId)
 	}
 
 	// TODO: persist to disk
