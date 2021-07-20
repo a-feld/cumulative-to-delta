@@ -1,6 +1,6 @@
 package tracking
 
-type DataPoint interface {
-	Identity() MetricIdentity
-	Point() MetricPoint
+type DataPoint struct {
+	Identity MetricIdentity
+	Point    MetricPoint
 }

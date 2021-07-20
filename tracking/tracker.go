@@ -9,15 +9,15 @@ import (
 type State struct {
 	Identity    MetricIdentity
 	LatestPoint MetricPoint
-	Mu          sync.Mutex
+	mu          sync.Mutex
 }
 
 func (s *State) Lock() {
-	s.Mu.Lock()
+	s.mu.Lock()
 }
 
 func (s *State) Unlock() {
-	s.Mu.Unlock()
+	s.mu.Unlock()
 }
 
 type DeltaValue struct {
@@ -30,20 +30,20 @@ type MetricTracker struct {
 }
 
 func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
-	metricId := in.Identity()
-	metricPoint := in.Point()
+	metricId := in.Identity
+	metricPoint := in.Point
 
 	hashableId := metricId.AsString()
 	s, _ := m.States.LoadOrStore(hashableId, &State{
 		Identity:    metricId,
-		Mu:          sync.Mutex{},
+		mu:          sync.Mutex{},
 		LatestPoint: metricPoint,
 	})
 	state := s.(*State)
 	state.Lock()
 	defer state.Unlock()
 
-	switch metricId.Metric().DataType() {
+	switch metricId.Metric.DataType() {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
 		value := metricPoint.Value().(float64)
