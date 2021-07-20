@@ -68,6 +68,34 @@ func TestMetricTracker_Convert(t *testing.T) {
 				Value:          75.0,
 			},
 		},
+		{
+			name: "Record delta above first recorded value",
+			dataPoint: DataPoint{
+				Identity: mi,
+				Point: MetricPoint{
+					ObservedTimestamp: 150,
+					Value:             300.0,
+				},
+			},
+			wantOut: DeltaValue{
+				StartTimestamp: 100,
+				Value:          225.0,
+			},
+		},
+		{
+			name: "Lower Value Recorded - Previous Offset Recorded",
+			dataPoint: DataPoint{
+				Identity: mi,
+				Point: MetricPoint{
+					ObservedTimestamp: 200,
+					Value:             25.0,
+				},
+			},
+			wantOut: DeltaValue{
+				StartTimestamp: 150,
+				Value:          25.0,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
