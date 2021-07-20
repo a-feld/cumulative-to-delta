@@ -48,7 +48,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			fields: fields{
 				States: func() sync.Map {
 					m := sync.Map{}
-					m.Store(foobarId, &State{CurrentCumulative: 100, LatestValue: 100})
+					m.Store(foobarId, &State{CurrentCumulative: 100, LatestPoint: 100})
 					return m
 				}(),
 				Metrics: map[metricIdentity]Metric{},
@@ -73,7 +73,7 @@ func TestMetricTracker_Record(t *testing.T) {
 					m := sync.Map{}
 					m.Store(foobarId, &State{
 						CurrentCumulative: 200,
-						LatestValue:  200,
+						LatestPoint:  200,
 					})
 					return m
 				}(),
@@ -97,7 +97,7 @@ func TestMetricTracker_Record(t *testing.T) {
 			fields: fields{
 				States: func() sync.Map {
 					m := sync.Map{}
-					m.Store(foobarId, &State{CurrentCumulative: 280, LatestValue: 80, Offset: 200})
+					m.Store(foobarId, &State{CurrentCumulative: 280, LatestPoint: 80, Offset: 200})
 					return m
 				}(),
 				Metrics: map[metricIdentity]Metric{},
@@ -157,7 +157,7 @@ func TestMetricTracker_Flush(t *testing.T) {
 					m := sync.Map{}
 					m.Store(foobarId, &State{
 						CurrentCumulative: 62,
-						LatestValue:  20,
+						LatestPoint:  20,
 						Offset:       42,
 						LastCumulative:  0,
 					})

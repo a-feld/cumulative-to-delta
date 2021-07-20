@@ -7,12 +7,9 @@ import (
 )
 
 type State struct {
-	Identity       MetricIdentity
-	LastCumulative interface{}
-	LatestValue    interface{}
-	Offset         interface{}
-	LastObserved   pdata.Timestamp
-	Mu             sync.Mutex
+	Identity    MetricIdentity
+	LatestPoint MetricPoint
+	Mu          sync.Mutex
 }
 
 func (s *State) Lock() {
@@ -38,9 +35,9 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 
 	hashableId := metricId.AsString()
 	s, _ := m.States.LoadOrStore(hashableId, &State{
-		Identity:     metricId,
-		Mu:           sync.Mutex{},
-		LastObserved: metricPoint.Timestamp(),
+		Identity:    metricId,
+		Mu:          sync.Mutex{},
+		LatestPoint: metricPoint,
 	})
 	state := s.(*State)
 	state.Lock()
@@ -49,29 +46,25 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	switch metricId.Metric().DataType() {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
-		offset := state.Offset.(float64)
 		value := metricPoint.Value().(float64)
-		latestValue := state.LatestValue.(float64)
-		lastCumulative := state.LastCumulative.(float64)
+		latestValue := state.LatestPoint.Value().(float64)
 
 		// Detect reset on a monotonic counter
+		offset := 0.0
 		if value < latestValue {
-			offset += latestValue
+			offset = latestValue
 		}
 
 		// Update the total cumulative count
 		// Delta will be computed as currentCumulative - lastCumulative
 		currentCumulative := value + offset
 		out = DeltaValue{
-			StartTimestamp: state.LastObserved,
-			Value:          currentCumulative - lastCumulative,
+			StartTimestamp: state.LatestPoint.ObservedTimestamp(),
+			Value:          currentCumulative - latestValue,
 		}
 
 		// Store state values
-		state.Offset = offset
-		state.LatestValue = value
-		state.LastCumulative = currentCumulative
-		state.LastObserved = metricPoint.Timestamp()
+		state.LatestPoint = metricPoint
 	default:
 		m.States.Delete(hashableId)
 	}

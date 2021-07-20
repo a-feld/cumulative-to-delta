@@ -5,7 +5,7 @@ import (
 )
 
 type MetricPoint interface {
-	Timestamp() pdata.Timestamp
+	ObservedTimestamp() pdata.Timestamp
 	Value() interface{}
 }
 
