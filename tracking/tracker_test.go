@@ -8,15 +8,14 @@ import (
 )
 
 func TestMetricTracker_Convert(t *testing.T) {
-	metric := pdata.NewMetric()
-	metric.SetDataType(pdata.MetricDataTypeSum)
-	metric.Sum().SetAggregationTemporality(pdata.AggregationTemporalityCumulative)
-	metric.Sum().SetIsMonotonic(true)
-
 	mi := MetricIdentity{
 		Resource:               pdata.NewResource(),
 		InstrumentationLibrary: pdata.NewInstrumentationLibrary(),
-		Metric:                 metric,
+		MetricDataType:         pdata.MetricDataTypeSum,
+		MetricIsMonotonic:      true,
+		MetricName:             "",
+		MetricDescription:      "",
+		MetricUnit:             "",
 		LabelsMap:              pdata.NewStringMap(),
 	}
 

@@ -41,6 +41,7 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	})
 
 	if !ok {
+		//metricId.Metric.
 		out = DeltaValue{
 			StartTimestamp: metricPoint.ObservedTimestamp,
 			Value:          metricPoint.Value,
@@ -52,7 +53,7 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	state.Lock()
 	defer state.Unlock()
 
-	switch metricId.Metric.DataType() {
+	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
 		value := metricPoint.Value.(float64)
@@ -60,7 +61,7 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 
 		// Detect reset on a monotonic counter
 		delta := value - latestValue
-		if metricId.Metric.Sum().IsMonotonic() && value < latestValue {
+		if metricId.MetricIsMonotonic && value < latestValue {
 			delta = value
 		}
 

@@ -10,7 +10,11 @@ import (
 type MetricIdentity struct {
 	Resource               pdata.Resource
 	InstrumentationLibrary pdata.InstrumentationLibrary
-	Metric                 pdata.Metric
+	MetricDataType         pdata.MetricDataType
+	MetricIsMonotonic      bool
+	MetricName             string
+	MetricDescription      string
+	MetricUnit             string
 	LabelsMap              pdata.StringMap
 }
 
@@ -36,11 +40,11 @@ func (mi *MetricIdentity) AsString() string {
 	h.WriteString(mi.InstrumentationLibrary.Version())
 
 	h.WriteString(";m;")
-	h.WriteString(mi.Metric.Name())
+	h.WriteString(mi.MetricName)
 	h.WriteString(";")
-	h.WriteString(mi.Metric.Description())
+	h.WriteString(mi.MetricDescription)
 	h.WriteString(";")
-	h.WriteString(mi.Metric.Unit())
+	h.WriteString(mi.MetricUnit)
 
 	h.WriteString(";l;")
 	mi.LabelsMap.Sort().Range(func(k, v string) bool {

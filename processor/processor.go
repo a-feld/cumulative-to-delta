@@ -54,7 +54,11 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 								Identity: tracking.MetricIdentity{
 									Resource:               rm.Resource(),
 									InstrumentationLibrary: ilm.InstrumentationLibrary(),
-									Metric:                 m,
+									MetricDataType:         m.DataType(),
+									MetricIsMonotonic:      ms.IsMonotonic(),
+									MetricName:             m.Name(),
+									MetricDescription:      m.Description(),
+									MetricUnit:             m.Unit(),
 									LabelsMap:              dp.LabelsMap(),
 								},
 								Point: tracking.MetricPoint{
