@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"go.opentelemetry.io/collector/consumer/pdata"
+	"go.opentelemetry.io/collector/model/pdata"
 )
 
 type State struct {
@@ -70,13 +70,12 @@ func (m *MetricTracker) Flush() pdata.Metrics {
 		metadata.InstrumentationLibrary().CopyTo(ilms.InstrumentationLibrary())
 
 		ms := ilms.Metrics()
-		me := pdata.NewMetric()
+		me := ms.AppendEmpty()
 		metadata.Metric().CopyTo(me)
-		ms.Append(me)
 
 		v := state.RunningTotal - state.LastFlushed
 
-		dp := me.DoubleSum().DataPoints().AppendEmpty()
+		dp := me.Sum().DataPoints().AppendEmpty()
 		dp.SetStartTimestamp(m.LastFlushTime)
 		dp.SetTimestamp(t)
 		dp.SetValue(v)

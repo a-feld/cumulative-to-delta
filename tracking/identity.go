@@ -1,6 +1,6 @@
 package tracking
 
-import "go.opentelemetry.io/collector/consumer/pdata"
+import "go.opentelemetry.io/collector/model/pdata"
 
 type MetricIdentity interface {
 	Identity() string
