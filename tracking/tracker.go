@@ -9,6 +9,7 @@ import (
 
 type State struct {
 	Identity          MetricIdentity
+	Valid             bool
 	CurrentCumulative interface{}
 	LastCumulative    interface{}
 	LatestValue       interface{}
@@ -36,6 +37,9 @@ func (m *MetricTracker) Record(in DataPoint) {
 	state := s.(*State)
 	state.Lock()
 	defer state.Unlock()
+
+	// Assume state values will be assigned to here, so mark the state as valid
+	state.Valid = true
 
 	// Compute updated offset if applicable
 	switch metricId.Metric().DataType() {
@@ -71,6 +75,11 @@ func (m *MetricTracker) Flush() pdata.Metrics {
 		state := value.(*State)
 		state.Lock()
 		defer state.Unlock()
+
+		// Only attempt to process valid states (states can be added while flushing)
+		if !state.Valid {
+			return true
+		}
 
 		identity := state.Identity
 		rms := metrics.ResourceMetrics().AppendEmpty()
