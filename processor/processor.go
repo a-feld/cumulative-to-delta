@@ -77,8 +77,7 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.MetricIdentity) {
 	switch dps := in.(type) {
 	case pdata.DoubleDataPointSlice:
-		for i := 0; i < dps.Len(); i++ {
-			dp := dps.At(i)
+		dps.RemoveIf(func(dp pdata.DoubleDataPoint) bool {
 			id := baseIdentity
 			id.LabelsMap = dp.LabelsMap()
 			point := tracking.MetricPoint{
@@ -89,12 +88,15 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				Identity: id,
 				Point:    point,
 			})
+			if delta.Value == nil {
+				return true
+			}
 			dp.SetStartTimestamp(delta.StartTimestamp)
 			dp.SetValue(delta.Value.(float64))
-		}
+			return false
+		})
 	case pdata.IntDataPointSlice:
-		for i := 0; i < dps.Len(); i++ {
-			dp := dps.At(i)
+		dps.RemoveIf(func(dp pdata.IntDataPoint) bool {
 			id := baseIdentity
 			id.LabelsMap = dp.LabelsMap()
 			point := tracking.MetricPoint{
@@ -105,9 +107,13 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				Identity: id,
 				Point:    point,
 			})
+			if delta.Value == nil {
+				return true
+			}
 			dp.SetStartTimestamp(delta.StartTimestamp)
 			dp.SetValue(delta.Value.(int64))
-		}
+			return false
+		})
 	}
 }
 

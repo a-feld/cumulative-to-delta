@@ -41,10 +41,11 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	})
 
 	if !ok {
-		//metricId.Metric.
-		out = DeltaValue{
-			StartTimestamp: metricPoint.ObservedTimestamp,
-			Value:          metricPoint.Value,
+		if metricId.MetricIsMonotonic {
+			out = DeltaValue{
+				StartTimestamp: metricPoint.ObservedTimestamp,
+				Value:          metricPoint.Value,
+			}
 		}
 		return
 	}
