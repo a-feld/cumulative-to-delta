@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"bytes"
+	"fmt"
 
 	"go.opentelemetry.io/collector/model/pdata"
 	tracetranslator "go.opentelemetry.io/collector/translator/trace"
@@ -20,11 +21,13 @@ type MetricIdentity struct {
 
 // Derived from counting the minimum required length of the strings being
 // written to an identity
-const initialBytes = 14
+const initialBytes = 17
 
 func (mi *MetricIdentity) AsString() string {
 	h := bytes.Buffer{}
 	h.Grow(initialBytes)
+	h.WriteString("t;")
+	h.WriteString(fmt.Sprintf("%d", mi.MetricDataType))
 	h.WriteString("r;")
 	mi.Resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
 		h.WriteString(k)
