@@ -1,8 +1,8 @@
 package tracking
 
 import (
-	"bytes"
 	"fmt"
+	"strings"
 
 	"go.opentelemetry.io/collector/model/pdata"
 	tracetranslator "go.opentelemetry.io/collector/translator/trace"
@@ -19,43 +19,42 @@ type MetricIdentity struct {
 	LabelsMap              pdata.StringMap
 }
 
-// Derived from counting the minimum required length of the strings being
-// written to an identity
-const initialBytes = 17
+// Allocate a minimum of 64 bytes to the builder initially
+const initialBytes = 64
 
 func (mi *MetricIdentity) AsString() string {
-	h := bytes.Buffer{}
-	h.Grow(initialBytes)
-	h.WriteString("t;")
-	h.WriteString(fmt.Sprintf("%d", mi.MetricDataType))
-	h.WriteString("r;")
+	b := strings.Builder{}
+	b.Grow(initialBytes)
+	b.WriteString("t;")
+	b.WriteString(fmt.Sprintf("%d", mi.MetricDataType))
+	b.WriteString("r;")
 	mi.Resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
-		h.WriteString(k)
-		h.WriteString(";")
-		h.WriteString(tracetranslator.AttributeValueToString(v))
-		h.WriteString(";")
+		b.WriteString(k)
+		b.WriteString(";")
+		b.WriteString(tracetranslator.AttributeValueToString(v))
+		b.WriteString(";")
 		return true
 	})
 
-	h.WriteString(";i;")
-	h.WriteString(mi.InstrumentationLibrary.Name())
-	h.WriteString(";")
-	h.WriteString(mi.InstrumentationLibrary.Version())
+	b.WriteString(";i;")
+	b.WriteString(mi.InstrumentationLibrary.Name())
+	b.WriteString(";")
+	b.WriteString(mi.InstrumentationLibrary.Version())
 
-	h.WriteString(";m;")
-	h.WriteString(mi.MetricName)
-	h.WriteString(";")
-	h.WriteString(mi.MetricDescription)
-	h.WriteString(";")
-	h.WriteString(mi.MetricUnit)
+	b.WriteString(";m;")
+	b.WriteString(mi.MetricName)
+	b.WriteString(";")
+	b.WriteString(mi.MetricDescription)
+	b.WriteString(";")
+	b.WriteString(mi.MetricUnit)
 
-	h.WriteString(";l;")
+	b.WriteString(";l;")
 	mi.LabelsMap.Sort().Range(func(k, v string) bool {
-		h.WriteString(k)
-		h.WriteString(";")
-		h.WriteString(v)
-		h.WriteString(";")
+		b.WriteString(k)
+		b.WriteString(";")
+		b.WriteString(v)
+		b.WriteString(";")
 		return true
 	})
-	return h.String()
+	return b.String()
 }
