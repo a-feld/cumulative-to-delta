@@ -11,7 +11,7 @@ import (
 
 const (
 	// The value of "type" key in configuration.
-	typeStr = "delta_converter"
+	typeStr = "cumulativetodelta"
 )
 
 var processorCapabilities = consumer.Capabilities{MutatesData: true}
