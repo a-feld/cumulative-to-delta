@@ -11,7 +11,8 @@ import (
 
 type processor struct {
 	nextConsumer consumer.Metrics
-	tracker      *tracking.MetricTracker
+	cancelFunc   context.CancelFunc
+	tracker      tracking.MetricTracker
 }
 
 var _ component.MetricsProcessor = (*processor)(nil)
@@ -25,6 +26,7 @@ func (p *processor) Start(ctx context.Context, host component.Host) error {
 }
 
 func (p *processor) Shutdown(ctx context.Context) error {
+	p.cancelFunc()
 	return nil
 }
 
@@ -116,10 +118,12 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 	}
 }
 
-func createProcessor(_ *Config, nextConsumer consumer.Metrics) (*processor, error) {
+func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	p := &processor{
 		nextConsumer: nextConsumer,
-		tracker:      &tracking.MetricTracker{},
+		cancelFunc:   cancel,
+		tracker:      tracking.NewMetricTracker(ctx, cfg.MaxStale),
 	}
 	return p, nil
 }

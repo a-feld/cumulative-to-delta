@@ -1,7 +1,9 @@
 package tracking
 
 import (
+	"context"
 	"sync"
+	"time"
 
 	"go.opentelemetry.io/collector/model/pdata"
 )
@@ -25,11 +27,22 @@ type DeltaValue struct {
 	Value          interface{}
 }
 
-type MetricTracker struct {
-	States sync.Map
+type MetricTracker interface {
+	Convert(DataPoint) DeltaValue
 }
 
-func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
+func NewMetricTracker(ctx context.Context, maxStale time.Duration) MetricTracker {
+	t := &metricTracker{MaxStale: maxStale}
+	t.Start(ctx)
+	return t
+}
+
+type metricTracker struct {
+	MaxStale time.Duration
+	States   sync.Map
+}
+
+func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	metricId := in.Identity
 	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:
@@ -40,7 +53,7 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	metricPoint := in.Point
 
 	hashableId := metricId.AsString()
-	s, ok := m.States.LoadOrStore(hashableId, &State{
+	s, ok := t.States.LoadOrStore(hashableId, &State{
 		Identity:    metricId,
 		mu:          sync.Mutex{},
 		LatestPoint: metricPoint,
@@ -91,4 +104,35 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 
 	state.LatestPoint = metricPoint
 	return
+}
+
+func (t *metricTracker) RemoveStale() {
+	staleBefore := pdata.TimestampFromTime(time.Now().Add(-t.MaxStale))
+	t.States.Range(func(key, value interface{}) bool {
+		s := value.(*State)
+		s.Lock()
+		lastObserved := s.LatestPoint.ObservedTimestamp
+		s.Unlock()
+		if lastObserved < staleBefore {
+			t.States.Delete(key)
+		}
+		return true
+	})
+}
+
+func (t *metricTracker) Start(ctx context.Context) {
+	if t.MaxStale == 0 {
+		return
+	}
+
+	ticker := time.NewTicker(t.MaxStale)
+	go func() {
+		select {
+		case <-ticker.C:
+			t.RemoveStale()
+		case <-ctx.Done():
+			ticker.Stop()
+			return
+		}
+	}()
 }

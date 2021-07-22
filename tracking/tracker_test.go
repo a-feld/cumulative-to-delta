@@ -1,6 +1,7 @@
 package tracking
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -21,7 +22,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 	miIntSum := miSum
 	miIntSum.MetricDataType = pdata.MetricDataTypeIntSum
 
-	m := MetricTracker{}
+	m := NewMetricTracker(context.Background(), 0)
 
 	tests := []struct {
 		name    string
