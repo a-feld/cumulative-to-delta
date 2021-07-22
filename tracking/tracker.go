@@ -60,44 +60,35 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	state.Lock()
 	defer state.Unlock()
 
+	out.StartTimestamp = state.LatestPoint.ObservedTimestamp
+
 	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
 		value := metricPoint.Value.(float64)
 		latestValue := state.LatestPoint.Value.(float64)
+		delta := value - latestValue
 
 		// Detect reset on a monotonic counter
-		delta := value - latestValue
 		if metricId.MetricIsMonotonic && value < latestValue {
 			delta = value
 		}
 
-		out = DeltaValue{
-			StartTimestamp: state.LatestPoint.ObservedTimestamp,
-			Value:          delta,
-		}
-
-		// Store state values
-		state.LatestPoint = metricPoint
+		out.Value = delta
 	case pdata.MetricDataTypeIntSum:
 		// Convert state values to int64
 		value := metricPoint.Value.(int64)
 		latestValue := state.LatestPoint.Value.(int64)
+		delta := value - latestValue
 
 		// Detect reset on a monotonic counter
-		delta := value - latestValue
 		if metricId.MetricIsMonotonic && value < latestValue {
 			delta = value
 		}
 
-		out = DeltaValue{
-			StartTimestamp: state.LatestPoint.ObservedTimestamp,
-			Value:          delta,
-		}
-
-		// Store state values
-		state.LatestPoint = metricPoint
+		out.Value = delta
 	}
 
+	state.LatestPoint = metricPoint
 	return
 }
