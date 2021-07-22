@@ -107,4 +107,19 @@ func TestMetricTracker_Convert(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Invalid metric identity", func(t *testing.T) {
+		invalidId := miIntSum
+		invalidId.MetricDataType = pdata.MetricDataTypeGauge
+		delta := m.Convert(DataPoint{
+			Identity: invalidId,
+			Point: MetricPoint{
+				ObservedTimestamp: 0,
+				Value:             100.0,
+			},
+		})
+		if delta.Value != nil {
+			t.Error("Expected delta value to be nil for non cumulative metric")
+		}
+	})
 }

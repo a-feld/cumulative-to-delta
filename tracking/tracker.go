@@ -31,6 +31,12 @@ type MetricTracker struct {
 
 func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 	metricId := in.Identity
+	switch metricId.MetricDataType {
+	case pdata.MetricDataTypeSum:
+	case pdata.MetricDataTypeIntSum:
+	default:
+		return
+	}
 	metricPoint := in.Point
 
 	hashableId := metricId.AsString()
@@ -91,8 +97,6 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 
 		// Store state values
 		state.LatestPoint = metricPoint
-	default:
-		m.States.Delete(hashableId)
 	}
 
 	return
