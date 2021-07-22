@@ -1,12 +1,12 @@
-package processor
+package cumulativetodeltaprocessor
 
 import (
 	"context"
 
+	"github.com/a-feld/cumulativetodeltaprocessor/tracking"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/model/pdata"
-	"me.localhost/cumulative-to-delta/tracking"
 )
 
 type processor struct {

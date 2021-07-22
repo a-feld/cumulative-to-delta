@@ -1,4 +1,4 @@
-module me.localhost/cumulative-to-delta
+module github.com/a-feld/cumulativetodeltaprocessor
 
 go 1.16
 
