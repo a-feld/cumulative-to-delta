@@ -3,7 +3,9 @@ package tracking
 import (
 	"context"
 	"reflect"
+	"sync"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/collector/model/pdata"
 )
@@ -123,4 +125,67 @@ func TestMetricTracker_Convert(t *testing.T) {
 			t.Error("Expected delta value to be nil for non cumulative metric")
 		}
 	})
+}
+
+func Test_metricTracker_RemoveStale(t *testing.T) {
+	currentTime := pdata.Timestamp(100)
+	freshPoint := MetricPoint{
+		ObservedTimestamp: currentTime,
+	}
+	stalePoint := MetricPoint{
+		ObservedTimestamp: currentTime - 1,
+	}
+
+	type fields struct {
+		MaxStale time.Duration
+		States   map[string]*State
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantOut map[string]*State
+	}{
+		{
+			name: "Removes stale entry, leaves fresh entry",
+			fields: fields{
+				MaxStale: 0, // This logic isn't tested here
+				States: map[string]*State{
+					"stale": {
+						LatestPoint: stalePoint,
+					},
+					"fresh": {
+						LatestPoint: freshPoint,
+					},
+				},
+			},
+			wantOut: map[string]*State{
+				"fresh": {
+					LatestPoint: freshPoint,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syncMap := sync.Map{}
+			for k, v := range tt.fields.States {
+				syncMap.Store(k, v)
+			}
+			tr := &metricTracker{
+				MaxStale: tt.fields.MaxStale,
+				States:   syncMap,
+			}
+			tr.RemoveStale(currentTime)
+
+			gotOut := make(map[string]*State)
+			tr.States.Range(func(key, value interface{}) bool {
+				gotOut[key.(string)] = value.(*State)
+				return true
+			})
+
+			if !reflect.DeepEqual(gotOut, tt.wantOut) {
+				t.Errorf("MetricTracker.RemoveStale() = %v, want %v", gotOut, tt.wantOut)
+			}
+		})
+	}
 }

@@ -106,8 +106,7 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	return
 }
 
-func (t *metricTracker) RemoveStale() {
-	staleBefore := pdata.TimestampFromTime(time.Now().Add(-t.MaxStale))
+func (t *metricTracker) RemoveStale(staleBefore pdata.Timestamp) {
 	t.States.Range(func(key, value interface{}) bool {
 		s := value.(*State)
 		s.Lock()
@@ -128,8 +127,9 @@ func (t *metricTracker) Start(ctx context.Context) {
 	ticker := time.NewTicker(t.MaxStale)
 	go func() {
 		select {
-		case <-ticker.C:
-			t.RemoveStale()
+		case currentTime := <-ticker.C:
+			staleBefore := pdata.TimestampFromTime(currentTime.Add(-t.MaxStale))
+			t.RemoveStale(staleBefore)
 		case <-ctx.Done():
 			ticker.Stop()
 			return
