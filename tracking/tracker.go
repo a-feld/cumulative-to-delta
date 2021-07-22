@@ -73,6 +73,24 @@ func (m *MetricTracker) Convert(in DataPoint) (out DeltaValue) {
 
 		// Store state values
 		state.LatestPoint = metricPoint
+	case pdata.MetricDataTypeIntSum:
+		// Convert state values to int64
+		value := metricPoint.Value.(int64)
+		latestValue := state.LatestPoint.Value.(int64)
+
+		// Detect reset on a monotonic counter
+		delta := value - latestValue
+		if metricId.MetricIsMonotonic && value < latestValue {
+			delta = value
+		}
+
+		out = DeltaValue{
+			StartTimestamp: state.LatestPoint.ObservedTimestamp,
+			Value:          delta,
+		}
+
+		// Store state values
+		state.LatestPoint = metricPoint
 	default:
 		m.States.Delete(hashableId)
 	}

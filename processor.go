@@ -59,7 +59,6 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
 					p.convertDataPoints(ms.DataPoints(), baseIdentity)
 				case pdata.MetricDataTypeSum:
-
 					ms := m.Sum()
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
 						break
