@@ -109,6 +109,20 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 func (t *metricTracker) RemoveStale(staleBefore pdata.Timestamp) {
 	t.States.Range(func(key, value interface{}) bool {
 		s := value.(*State)
+
+		// There is a known race condition here.
+		// Because the state may be in the process of updating at the
+		// same time as the stale removal, there is a chance that we
+		// will remove a "stale" state that is in the process of
+		// updating. This can only happen when datapoints arrive around
+		// the expiration time.
+		//
+		// In this case, the possible outcomes are:
+		//	* Updating goroutine wins, point will not be stale
+		//	* Stale removal wins, updating goroutine will still see
+		//	  the removed state but the state after the update will
+		//	  not be persisted. The next update will load an entirely
+		//	  new state.
 		s.Lock()
 		lastObserved := s.LatestPoint.ObservedTimestamp
 		s.Unlock()
