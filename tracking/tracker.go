@@ -138,8 +138,8 @@ func (t *metricTracker) Start(ctx context.Context) {
 		return
 	}
 
-	ticker := time.NewTicker(t.MaxStale)
 	go func() {
+		ticker := time.NewTicker(t.MaxStale)
 		for {
 			select {
 			case currentTime := <-ticker.C:
