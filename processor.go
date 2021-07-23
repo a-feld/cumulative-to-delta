@@ -10,9 +10,10 @@ import (
 )
 
 type processor struct {
-	nextConsumer consumer.Metrics
-	cancelFunc   context.CancelFunc
-	tracker      tracking.MetricTracker
+	nextConsumer   consumer.Metrics
+	cancelFunc     context.CancelFunc
+	tracker        tracking.MetricTracker
+	enabledMetrics map[string]struct{}
 }
 
 var _ component.MetricsProcessor = (*processor)(nil)
@@ -43,6 +44,11 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 			ms := ilm.Metrics()
 			for k := 0; k < ms.Len(); k++ {
 				m := ms.At(k)
+				if p.enabledMetrics != nil {
+					if _, ok := p.enabledMetrics[m.Name()]; !ok {
+						continue
+					}
+				}
 				baseIdentity := tracking.MetricIdentity{
 					Resource:               rm.Resource(),
 					InstrumentationLibrary: ilm.InstrumentationLibrary(),
@@ -57,17 +63,17 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
 						break
 					}
-					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
 					p.convertDataPoints(ms.DataPoints(), baseIdentity)
+					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 				case pdata.MetricDataTypeSum:
 					ms := m.Sum()
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
 						break
 					}
-					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
 					p.convertDataPoints(ms.DataPoints(), baseIdentity)
+					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 				}
 			}
 		}
@@ -89,6 +95,8 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				Identity: id,
 				Point:    point,
 			})
+
+			// TODO: add comment about non-monotonic cumulative metrics
 			if delta.Value == nil {
 				return true
 			}
@@ -124,6 +132,12 @@ func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, er
 		nextConsumer: nextConsumer,
 		cancelFunc:   cancel,
 		tracker:      tracking.NewMetricTracker(ctx, cfg.MaxStale),
+	}
+	if len(cfg.Metrics) > 0 {
+		p.enabledMetrics = make(map[string]struct{})
+		for _, m := range cfg.Metrics {
+			p.enabledMetrics[m] = struct{}{}
+		}
 	}
 	return p, nil
 }
