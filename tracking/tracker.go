@@ -140,13 +140,15 @@ func (t *metricTracker) Start(ctx context.Context) {
 
 	ticker := time.NewTicker(t.MaxStale)
 	go func() {
-		select {
-		case currentTime := <-ticker.C:
-			staleBefore := pdata.TimestampFromTime(currentTime.Add(-t.MaxStale))
-			t.RemoveStale(staleBefore)
-		case <-ctx.Done():
-			ticker.Stop()
-			return
+		for {
+			select {
+			case currentTime := <-ticker.C:
+				staleBefore := pdata.TimestampFromTime(currentTime.Add(-t.MaxStale))
+				t.RemoveStale(staleBefore)
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			}
 		}
 	}()
 }
