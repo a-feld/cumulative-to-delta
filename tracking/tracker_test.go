@@ -151,16 +151,16 @@ func Test_metricTracker_RemoveStale(t *testing.T) {
 				MaxStale: 0, // This logic isn't tested here
 				States: map[string]*State{
 					"stale": {
-						LatestPoint: stalePoint,
+						PrevPoint: stalePoint,
 					},
 					"fresh": {
-						LatestPoint: freshPoint,
+						PrevPoint: freshPoint,
 					},
 				},
 			},
 			wantOut: map[string]*State{
 				"fresh": {
-					LatestPoint: freshPoint,
+					PrevPoint: freshPoint,
 				},
 			},
 		},

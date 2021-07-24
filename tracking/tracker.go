@@ -9,9 +9,9 @@ import (
 )
 
 type State struct {
-	Identity    MetricIdentity
-	LatestPoint MetricPoint
-	mu          sync.Mutex
+	Identity  MetricIdentity
+	PrevPoint MetricPoint
+	mu        sync.Mutex
 }
 
 func (s *State) Lock() {
@@ -57,8 +57,8 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	var ok bool
 	if s, ok = t.States.Load(hashableId); !ok {
 		s, ok = t.States.LoadOrStore(hashableId, &State{
-			Identity:    metricId,
-			LatestPoint: metricPoint,
+			Identity:  metricId,
+			PrevPoint: metricPoint,
 		})
 	}
 
@@ -76,17 +76,17 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	state.Lock()
 	defer state.Unlock()
 
-	out.StartTimestamp = state.LatestPoint.ObservedTimestamp
+	out.StartTimestamp = state.PrevPoint.ObservedTimestamp
 
 	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
 		value := metricPoint.Value.(float64)
-		latestValue := state.LatestPoint.Value.(float64)
-		delta := value - latestValue
+		prevValue := state.PrevPoint.Value.(float64)
+		delta := value - prevValue
 
 		// Detect reset on a monotonic counter
-		if metricId.MetricIsMonotonic && value < latestValue {
+		if metricId.MetricIsMonotonic && value < prevValue {
 			delta = value
 		}
 
@@ -94,18 +94,18 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	case pdata.MetricDataTypeIntSum:
 		// Convert state values to int64
 		value := metricPoint.Value.(int64)
-		latestValue := state.LatestPoint.Value.(int64)
-		delta := value - latestValue
+		prevValue := state.PrevPoint.Value.(int64)
+		delta := value - prevValue
 
 		// Detect reset on a monotonic counter
-		if metricId.MetricIsMonotonic && value < latestValue {
+		if metricId.MetricIsMonotonic && value < prevValue {
 			delta = value
 		}
 
 		out.Value = delta
 	}
 
-	state.LatestPoint = metricPoint
+	state.PrevPoint = metricPoint
 	return
 }
 
@@ -127,7 +127,7 @@ func (t *metricTracker) RemoveStale(staleBefore pdata.Timestamp) {
 		//	  not be persisted. The next update will load an entirely
 		//	  new state.
 		s.Lock()
-		lastObserved := s.LatestPoint.ObservedTimestamp
+		lastObserved := s.PrevPoint.ObservedTimestamp
 		s.Unlock()
 		if lastObserved < staleBefore {
 			t.States.Delete(key)
