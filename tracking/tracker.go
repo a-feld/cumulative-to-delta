@@ -53,11 +53,14 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	metricPoint := in.Point
 
 	hashableId := metricId.AsString()
-	s, ok := t.States.LoadOrStore(hashableId, &State{
-		Identity:    metricId,
-		mu:          sync.Mutex{},
-		LatestPoint: metricPoint,
-	})
+	var s interface{}
+	var ok bool
+	if s, ok = t.States.Load(hashableId); !ok {
+		s, ok = t.States.LoadOrStore(hashableId, &State{
+			Identity:    metricId,
+			LatestPoint: metricPoint,
+		})
+	}
 
 	if !ok {
 		if metricId.MetricIsMonotonic {
