@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"bytes"
+	"strconv"
 	"sync"
 
 	"go.opentelemetry.io/collector/model/pdata"
@@ -25,8 +26,10 @@ type MetricIdentity struct {
 	MetricName             string
 	MetricDescription      string
 	MetricUnit             string
+	StartTimestamp         pdata.Timestamp
 	LabelsMap              pdata.StringMap
 }
+
 const A = int32('A')
 
 func (mi *MetricIdentity) AsString() string {
@@ -54,13 +57,15 @@ func (mi *MetricIdentity) AsString() string {
 	b.WriteString(";")
 	b.WriteString(mi.MetricUnit)
 
-	b.WriteString(";l;")
+	b.WriteString(";l")
 	mi.LabelsMap.Sort().Range(func(k, v string) bool {
+		b.WriteString(";")
 		b.WriteString(k)
 		b.WriteString(";")
 		b.WriteString(v)
-		b.WriteString(";")
 		return true
 	})
+	b.WriteString(";s;")
+	b.WriteString(strconv.FormatInt(int64(mi.StartTimestamp), 36))
 	return b.String()
 }

@@ -86,6 +86,7 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 	case pdata.DoubleDataPointSlice:
 		dps.RemoveIf(func(dp pdata.DoubleDataPoint) bool {
 			id := baseIdentity
+			id.StartTimestamp = dp.StartTimestamp()
 			id.LabelsMap = dp.LabelsMap()
 			point := tracking.ValuePoint{
 				ObservedTimestamp: dp.Timestamp(),
@@ -107,6 +108,7 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 	case pdata.IntDataPointSlice:
 		dps.RemoveIf(func(dp pdata.IntDataPoint) bool {
 			id := baseIdentity
+			id.StartTimestamp = dp.StartTimestamp()
 			id.LabelsMap = dp.LabelsMap()
 			point := tracking.ValuePoint{
 				ObservedTimestamp: dp.Timestamp(),
