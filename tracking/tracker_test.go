@@ -135,7 +135,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 	})
 }
 
-func Test_metricTracker_RemoveStale(t *testing.T) {
+func Test_metricTracker_removeStale(t *testing.T) {
 	currentTime := pdata.Timestamp(100)
 	freshPoint := ValuePoint{
 		ObservedTimestamp: currentTime,
@@ -192,7 +192,7 @@ func Test_metricTracker_RemoveStale(t *testing.T) {
 			})
 
 			if !reflect.DeepEqual(gotOut, tt.wantOut) {
-				t.Errorf("MetricTracker.RemoveStale() = %v, want %v", gotOut, tt.wantOut)
+				t.Errorf("MetricTracker.removeStale() = %v, want %v", gotOut, tt.wantOut)
 			}
 		})
 	}
