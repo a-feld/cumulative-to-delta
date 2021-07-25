@@ -43,14 +43,16 @@ type MetricTracker interface {
 }
 
 func NewMetricTracker(ctx context.Context, maxStale time.Duration) MetricTracker {
-	t := &metricTracker{MaxStale: maxStale}
-	t.Start(ctx)
+	t := &metricTracker{maxStale: maxStale}
+	if maxStale > 0 {
+		go t.sweeper(ctx, t.removeStale)
+	}
 	return t
 }
 
 type metricTracker struct {
-	MaxStale time.Duration
-	States   sync.Map
+	maxStale time.Duration
+	states   sync.Map
 }
 
 func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
@@ -72,8 +74,8 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 
 	var s interface{}
 	var ok bool
-	if s, ok = t.States.Load(hashableId); !ok {
-		s, ok = t.States.LoadOrStore(hashableId, &State{
+	if s, ok = t.states.Load(hashableId); !ok {
+		s, ok = t.states.LoadOrStore(hashableId, &State{
 			Identity:  metricId,
 			PrevPoint: metricPoint,
 		})
@@ -129,8 +131,8 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 	return
 }
 
-func (t *metricTracker) RemoveStale(staleBefore pdata.Timestamp) {
-	t.States.Range(func(key, value interface{}) bool {
+func (t *metricTracker) removeStale(staleBefore pdata.Timestamp) {
+	t.states.Range(func(key, value interface{}) bool {
 		s := value.(*State)
 
 		// There is a known race condition here.
@@ -150,28 +152,22 @@ func (t *metricTracker) RemoveStale(staleBefore pdata.Timestamp) {
 		lastObserved := s.PrevPoint.ObservedTimestamp
 		s.Unlock()
 		if lastObserved < staleBefore {
-			t.States.Delete(key)
+			t.states.Delete(key)
 		}
 		return true
 	})
 }
 
-func (t *metricTracker) Start(ctx context.Context) {
-	if t.MaxStale == 0 {
-		return
-	}
-
-	go func() {
-		ticker := time.NewTicker(t.MaxStale)
-		for {
-			select {
-			case currentTime := <-ticker.C:
-				staleBefore := pdata.TimestampFromTime(currentTime.Add(-t.MaxStale))
-				t.RemoveStale(staleBefore)
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			}
+func (t *metricTracker) sweeper(ctx context.Context, remove func(pdata.Timestamp)) {
+	ticker := time.NewTicker(t.maxStale)
+	for {
+		select {
+		case currentTime := <-ticker.C:
+			staleBefore := pdata.TimestampFromTime(currentTime.Add(-t.maxStale))
+			remove(staleBefore)
+		case <-ctx.Done():
+			ticker.Stop()
+			return
 		}
-	}()
+	}
 }

@@ -180,13 +180,13 @@ func Test_metricTracker_RemoveStale(t *testing.T) {
 				syncMap.Store(k, v)
 			}
 			tr := &metricTracker{
-				MaxStale: tt.fields.MaxStale,
-				States:   syncMap,
+				maxStale: tt.fields.MaxStale,
+				states:   syncMap,
 			}
-			tr.RemoveStale(currentTime)
+			tr.removeStale(currentTime)
 
 			gotOut := make(map[string]*State)
-			tr.States.Range(func(key, value interface{}) bool {
+			tr.states.Range(func(key, value interface{}) bool {
 				gotOut[key.(string)] = value.(*State)
 				return true
 			})
