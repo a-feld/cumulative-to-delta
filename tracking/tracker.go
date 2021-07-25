@@ -10,7 +10,7 @@ import (
 
 type State struct {
 	Identity  MetricIdentity
-	PrevPoint MetricPoint
+	PrevPoint ValuePoint
 	mu        sync.Mutex
 }
 
@@ -29,7 +29,7 @@ type DeltaValue struct {
 }
 
 type MetricTracker interface {
-	Convert(DataPoint) (DeltaValue, bool)
+	Convert(MetricPoint) (DeltaValue, bool)
 }
 
 func NewMetricTracker(ctx context.Context, maxStale time.Duration) MetricTracker {
@@ -43,7 +43,7 @@ type metricTracker struct {
 	States   sync.Map
 }
 
-func (t *metricTracker) Convert(in DataPoint) (out DeltaValue, valid bool) {
+func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 	metricId := in.Identity
 	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:

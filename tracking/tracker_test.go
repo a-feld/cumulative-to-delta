@@ -28,12 +28,12 @@ func TestMetricTracker_Convert(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		point   MetricPoint
+		point   ValuePoint
 		wantOut DeltaValue
 	}{
 		{
 			name: "Initial Value recorded",
-			point: MetricPoint{
+			point: ValuePoint{
 				ObservedTimestamp: 10,
 				FloatValue:        100.0,
 				IntValue:          100,
@@ -46,7 +46,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Higher Value Recorded",
-			point: MetricPoint{
+			point: ValuePoint{
 				ObservedTimestamp: 50,
 				FloatValue:        225.0,
 				IntValue:          225,
@@ -59,7 +59,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Lower Value Recorded - No Previous Offset",
-			point: MetricPoint{
+			point: ValuePoint{
 				ObservedTimestamp: 100,
 				FloatValue:        75.0,
 				IntValue:          75,
@@ -72,7 +72,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Record delta above first recorded value",
-			point: MetricPoint{
+			point: ValuePoint{
 				ObservedTimestamp: 150,
 				FloatValue:        300.0,
 				IntValue:          300,
@@ -85,7 +85,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Lower Value Recorded - Previous Offset Recorded",
-			point: MetricPoint{
+			point: ValuePoint{
 				ObservedTimestamp: 200,
 				FloatValue:        25.0,
 				IntValue:          25,
@@ -99,11 +99,11 @@ func TestMetricTracker_Convert(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			floatPoint := DataPoint{
+			floatPoint := MetricPoint{
 				Identity: miSum,
 				Point:    tt.point,
 			}
-			intPoint := DataPoint{
+			intPoint := MetricPoint{
 				Identity: miIntSum,
 				Point:    tt.point,
 			}
@@ -121,9 +121,9 @@ func TestMetricTracker_Convert(t *testing.T) {
 	t.Run("Invalid metric identity", func(t *testing.T) {
 		invalidId := miIntSum
 		invalidId.MetricDataType = pdata.MetricDataTypeGauge
-		_, valid := m.Convert(DataPoint{
+		_, valid := m.Convert(MetricPoint{
 			Identity: invalidId,
-			Point: MetricPoint{
+			Point: ValuePoint{
 				ObservedTimestamp: 0,
 				FloatValue:        100.0,
 				IntValue:          100,
@@ -137,10 +137,10 @@ func TestMetricTracker_Convert(t *testing.T) {
 
 func Test_metricTracker_RemoveStale(t *testing.T) {
 	currentTime := pdata.Timestamp(100)
-	freshPoint := MetricPoint{
+	freshPoint := ValuePoint{
 		ObservedTimestamp: currentTime,
 	}
-	stalePoint := MetricPoint{
+	stalePoint := ValuePoint{
 		ObservedTimestamp: currentTime - 1,
 	}
 

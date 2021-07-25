@@ -4,7 +4,7 @@ import (
 	"go.opentelemetry.io/collector/model/pdata"
 )
 
-type MetricPoint struct {
+type ValuePoint struct {
 	ObservedTimestamp pdata.Timestamp
 	FloatValue        float64
 	IntValue          int64
