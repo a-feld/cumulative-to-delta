@@ -1,12 +1,22 @@
 package tracking
 
 import (
+	"bytes"
 	"context"
 	"sync"
 	"time"
 
 	"go.opentelemetry.io/collector/model/pdata"
 )
+
+// Allocate a minimum of 64 bytes to the builder initially
+const initialBytes = 64
+
+var identityBufferPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, initialBytes))
+	},
+}
 
 type State struct {
 	Identity  MetricIdentity
@@ -54,7 +64,12 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 
 	metricPoint := in.Point
 
-	hashableId := metricId.AsString()
+	b := identityBufferPool.Get().(*bytes.Buffer)
+	b.Reset()
+	metricId.Write(b)
+	hashableId := b.String()
+	identityBufferPool.Put(b)
+
 	var s interface{}
 	var ok bool
 	if s, ok = t.States.Load(hashableId); !ok {

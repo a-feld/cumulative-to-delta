@@ -3,20 +3,10 @@ package tracking
 import (
 	"bytes"
 	"strconv"
-	"sync"
 
 	"go.opentelemetry.io/collector/model/pdata"
 	tracetranslator "go.opentelemetry.io/collector/translator/trace"
 )
-
-// Allocate a minimum of 64 bytes to the builder initially
-const initialBytes = 64
-
-var identityBufferPool = sync.Pool{
-	New: func() interface{} {
-		return bytes.NewBuffer(make([]byte, initialBytes))
-	},
-}
 
 type MetricIdentity struct {
 	Resource               pdata.Resource
@@ -32,10 +22,7 @@ type MetricIdentity struct {
 
 const A = int32('A')
 
-func (mi *MetricIdentity) AsString() string {
-	b := identityBufferPool.Get().(*bytes.Buffer)
-	defer identityBufferPool.Put(b)
-	b.Reset()
+func (mi *MetricIdentity) Write(b *bytes.Buffer) {
 	b.WriteString("t;")
 	b.WriteRune(A + int32(mi.MetricDataType))
 	b.WriteString("r")
@@ -67,5 +54,4 @@ func (mi *MetricIdentity) AsString() string {
 	})
 	b.WriteString(";s;")
 	b.WriteString(strconv.FormatInt(int64(mi.StartTimestamp), 36))
-	return b.String()
 }
