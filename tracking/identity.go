@@ -35,12 +35,12 @@ func (mi *MetricIdentity) AsString() string {
 	b.Reset()
 	b.WriteString("t;")
 	b.WriteRune(A + int32(mi.MetricDataType))
-	b.WriteString("r;")
+	b.WriteString("r")
 	mi.Resource.Attributes().Sort().Range(func(k string, v pdata.AttributeValue) bool {
+		b.WriteString(";")
 		b.WriteString(k)
 		b.WriteString(";")
 		b.WriteString(tracetranslator.AttributeValueToString(v))
-		b.WriteString(";")
 		return true
 	})
 
