@@ -134,7 +134,7 @@ func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, er
 		tracker:      tracking.NewMetricTracker(ctx, cfg.MaxStale),
 	}
 	if len(cfg.Metrics) > 0 {
-		p.enabledMetrics = make(map[string]struct{})
+		p.enabledMetrics = make(map[string]struct{}, len(cfg.Metrics))
 		for _, m := range cfg.Metrics {
 			p.enabledMetrics[m] = struct{}{}
 		}
