@@ -89,19 +89,19 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 			id.LabelsMap = dp.LabelsMap()
 			point := tracking.MetricPoint{
 				ObservedTimestamp: dp.Timestamp(),
-				Value:             dp.Value(),
+				FloatValue:        dp.Value(),
 			}
-			delta := p.tracker.Convert(tracking.DataPoint{
+			delta, valid := p.tracker.Convert(tracking.DataPoint{
 				Identity: id,
 				Point:    point,
 			})
 
 			// TODO: add comment about non-monotonic cumulative metrics
-			if delta.Value == nil {
+			if !valid {
 				return true
 			}
 			dp.SetStartTimestamp(delta.StartTimestamp)
-			dp.SetValue(delta.Value.(float64))
+			dp.SetValue(delta.FloatValue)
 			return false
 		})
 	case pdata.IntDataPointSlice:
@@ -110,17 +110,17 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 			id.LabelsMap = dp.LabelsMap()
 			point := tracking.MetricPoint{
 				ObservedTimestamp: dp.Timestamp(),
-				Value:             dp.Value(),
+				IntValue:          dp.Value(),
 			}
-			delta := p.tracker.Convert(tracking.DataPoint{
+			delta, valid := p.tracker.Convert(tracking.DataPoint{
 				Identity: id,
 				Point:    point,
 			})
-			if delta.Value == nil {
+			if !valid {
 				return true
 			}
 			dp.SetStartTimestamp(delta.StartTimestamp)
-			dp.SetValue(delta.Value.(int64))
+			dp.SetValue(delta.IntValue)
 			return false
 		})
 	}

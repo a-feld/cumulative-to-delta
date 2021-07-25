@@ -6,7 +6,8 @@ import (
 
 type MetricPoint struct {
 	ObservedTimestamp pdata.Timestamp
-	Value             interface{}
+	FloatValue        float64
+	IntValue          int64
 }
 
 type HistogramValue interface {

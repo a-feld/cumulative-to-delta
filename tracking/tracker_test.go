@@ -35,55 +35,65 @@ func TestMetricTracker_Convert(t *testing.T) {
 			name: "Initial Value recorded",
 			point: MetricPoint{
 				ObservedTimestamp: 10,
-				Value:             100.0,
+				FloatValue:        100.0,
+				IntValue:          100,
 			},
 			wantOut: DeltaValue{
 				StartTimestamp: 10,
-				Value:          100.0,
+				FloatValue:     100.0,
+				IntValue:       100,
 			},
 		},
 		{
 			name: "Higher Value Recorded",
 			point: MetricPoint{
 				ObservedTimestamp: 50,
-				Value:             225.0,
+				FloatValue:        225.0,
+				IntValue:          225,
 			},
 			wantOut: DeltaValue{
 				StartTimestamp: 10,
-				Value:          125.0,
+				FloatValue:     125.0,
+				IntValue:       125,
 			},
 		},
 		{
 			name: "Lower Value Recorded - No Previous Offset",
 			point: MetricPoint{
 				ObservedTimestamp: 100,
-				Value:             75.0,
+				FloatValue:        75.0,
+				IntValue:          75,
 			},
 			wantOut: DeltaValue{
 				StartTimestamp: 50,
-				Value:          75.0,
+				FloatValue:     75.0,
+				IntValue:       75,
 			},
 		},
 		{
 			name: "Record delta above first recorded value",
 			point: MetricPoint{
 				ObservedTimestamp: 150,
-				Value:             300.0,
+				FloatValue:        300.0,
+				IntValue:          300,
 			},
 			wantOut: DeltaValue{
 				StartTimestamp: 100,
-				Value:          225.0,
+				FloatValue:     225.0,
+				IntValue:       225,
 			},
 		},
 		{
 			name: "Lower Value Recorded - Previous Offset Recorded",
 			point: MetricPoint{
 				ObservedTimestamp: 200,
-				Value:             25.0,
+				FloatValue:        25.0,
+				IntValue:          25,
 			},
 			wantOut: DeltaValue{
 				StartTimestamp: 150,
-				Value:          25.0,
+				FloatValue:     25.0,
+				IntValue:       25,
 			},
 		},
 	}
@@ -97,16 +107,13 @@ func TestMetricTracker_Convert(t *testing.T) {
 				Identity: miIntSum,
 				Point:    tt.point,
 			}
-			intPoint.Point.Value = int64(tt.point.Value.(float64))
-			wantOutInt := tt.wantOut
-			wantOutInt.Value = int64(wantOutInt.Value.(float64))
 
-			if gotOut := m.Convert(floatPoint); !reflect.DeepEqual(gotOut, tt.wantOut) {
+			if gotOut, valid := m.Convert(floatPoint); !valid || !reflect.DeepEqual(gotOut.StartTimestamp, tt.wantOut.StartTimestamp) || !reflect.DeepEqual(gotOut.FloatValue, tt.wantOut.FloatValue) {
 				t.Errorf("MetricTracker.Convert(MetricDataTypeSum) = %v, want %v", gotOut, tt.wantOut)
 			}
 
-			if gotOut := m.Convert(intPoint); !reflect.DeepEqual(gotOut, wantOutInt) {
-				t.Errorf("MetricTracker.Convert(MetricDataTypeIntSum) = %v, want %v", gotOut, wantOutInt)
+			if gotOut, valid := m.Convert(intPoint); !valid || !reflect.DeepEqual(gotOut.StartTimestamp, tt.wantOut.StartTimestamp) || !reflect.DeepEqual(gotOut.IntValue, tt.wantOut.IntValue) {
+				t.Errorf("MetricTracker.Convert(MetricDataTypeIntSum) = %v, want %v", gotOut, tt.wantOut)
 			}
 		})
 	}
@@ -114,15 +121,16 @@ func TestMetricTracker_Convert(t *testing.T) {
 	t.Run("Invalid metric identity", func(t *testing.T) {
 		invalidId := miIntSum
 		invalidId.MetricDataType = pdata.MetricDataTypeGauge
-		delta := m.Convert(DataPoint{
+		_, valid := m.Convert(DataPoint{
 			Identity: invalidId,
 			Point: MetricPoint{
 				ObservedTimestamp: 0,
-				Value:             100.0,
+				FloatValue:        100.0,
+				IntValue:          100,
 			},
 		})
-		if delta.Value != nil {
-			t.Error("Expected delta value to be nil for non cumulative metric")
+		if valid {
+			t.Error("Expected invalid for non cumulative metric")
 		}
 	})
 }

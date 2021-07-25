@@ -24,11 +24,12 @@ func (s *State) Unlock() {
 
 type DeltaValue struct {
 	StartTimestamp pdata.Timestamp
-	Value          interface{}
+	FloatValue     float64
+	IntValue       int64
 }
 
 type MetricTracker interface {
-	Convert(DataPoint) DeltaValue
+	Convert(DataPoint) (DeltaValue, bool)
 }
 
 func NewMetricTracker(ctx context.Context, maxStale time.Duration) MetricTracker {
@@ -42,7 +43,7 @@ type metricTracker struct {
 	States   sync.Map
 }
 
-func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
+func (t *metricTracker) Convert(in DataPoint) (out DeltaValue, valid bool) {
 	metricId := in.Identity
 	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:
@@ -50,6 +51,8 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	default:
 		return
 	}
+	valid = true
+
 	metricPoint := in.Point
 
 	hashableId := metricId.AsString()
@@ -66,7 +69,8 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 		if metricId.MetricIsMonotonic {
 			out = DeltaValue{
 				StartTimestamp: metricPoint.ObservedTimestamp,
-				Value:          metricPoint.Value,
+				FloatValue:     metricPoint.FloatValue,
+				IntValue:       metricPoint.IntValue,
 			}
 		}
 		return
@@ -81,8 +85,8 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 	switch metricId.MetricDataType {
 	case pdata.MetricDataTypeSum:
 		// Convert state values to float64
-		value := metricPoint.Value.(float64)
-		prevValue := state.PrevPoint.Value.(float64)
+		value := metricPoint.FloatValue
+		prevValue := state.PrevPoint.FloatValue
 		delta := value - prevValue
 
 		// Detect reset on a monotonic counter
@@ -90,11 +94,11 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 			delta = value
 		}
 
-		out.Value = delta
+		out.FloatValue = delta
 	case pdata.MetricDataTypeIntSum:
 		// Convert state values to int64
-		value := metricPoint.Value.(int64)
-		prevValue := state.PrevPoint.Value.(int64)
+		value := metricPoint.IntValue
+		prevValue := state.PrevPoint.IntValue
 		delta := value - prevValue
 
 		// Detect reset on a monotonic counter
@@ -102,7 +106,7 @@ func (t *metricTracker) Convert(in DataPoint) (out DeltaValue) {
 			delta = value
 		}
 
-		out.Value = delta
+		out.IntValue = delta
 	}
 
 	state.PrevPoint = metricPoint
