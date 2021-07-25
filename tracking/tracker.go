@@ -51,7 +51,6 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 	default:
 		return
 	}
-	valid = true
 
 	metricPoint := in.Point
 
@@ -72,9 +71,11 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 				FloatValue:     metricPoint.FloatValue,
 				IntValue:       metricPoint.IntValue,
 			}
+			valid = true
 		}
 		return
 	}
+	valid = true
 
 	state := s.(*State)
 	state.Lock()
