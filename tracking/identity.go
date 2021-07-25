@@ -52,8 +52,6 @@ func (mi *MetricIdentity) AsString() string {
 	b.WriteString(";m;")
 	b.WriteString(mi.MetricName)
 	b.WriteString(";")
-	b.WriteString(mi.MetricDescription)
-	b.WriteString(";")
 	b.WriteString(mi.MetricUnit)
 
 	b.WriteString(";l;")
