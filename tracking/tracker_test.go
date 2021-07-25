@@ -197,3 +197,46 @@ func Test_metricTracker_RemoveStale(t *testing.T) {
 		})
 	}
 }
+
+func Test_metricTracker_sweeper(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	sweepEvent := make(chan pdata.Timestamp)
+	closed := false
+
+	onSweep := func(staleBefore pdata.Timestamp) {
+		sweepEvent <- staleBefore
+	}
+
+	tr := &metricTracker{
+		maxStale: 1 * time.Millisecond,
+	}
+
+	start := time.Now()
+	go func() {
+		tr.sweeper(ctx, onSweep)
+		closed = true
+		close(sweepEvent)
+	}()
+
+	for i := 1; i <= 2; i++ {
+		staleBefore := <-sweepEvent
+		tickTime := time.Since(start) + tr.maxStale*time.Duration(i)
+		if closed {
+			t.Fatalf("Sweeper returned prematurely.")
+		}
+
+		if tickTime < tr.maxStale {
+			t.Errorf("Sweeper tick time is too fast. (%v, want %v)", tickTime, tr.maxStale)
+		}
+
+		staleTime := staleBefore.AsTime()
+		if time.Since(staleTime) < tr.maxStale {
+			t.Errorf("Sweeper called with invalid staleBefore value = %v", staleTime)
+		}
+	}
+	cancel()
+	<-sweepEvent
+	if !closed {
+		t.Errorf("Sweeper did not terminate.")
+	}
+}
