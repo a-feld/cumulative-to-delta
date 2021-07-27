@@ -12,6 +12,7 @@ import (
 
 type processor struct {
 	logger         *zap.Logger
+	monotonicOnly  bool
 	nextConsumer   consumer.Metrics
 	cancelFunc     context.CancelFunc
 	tracker        tracking.MetricTracker
@@ -65,12 +66,18 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
 						break
 					}
+					if p.monotonicOnly && !ms.IsMonotonic() {
+						break
+					}
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
 					p.convertDataPoints(ms.DataPoints(), baseIdentity)
 					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 				case pdata.MetricDataTypeSum:
 					ms := m.Sum()
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
+						break
+					}
+					if p.monotonicOnly && !ms.IsMonotonic() {
 						break
 					}
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
@@ -137,10 +144,11 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 func createProcessor(cfg *Config, params component.ProcessorCreateSettings, nextConsumer consumer.Metrics) (*processor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &processor{
-		logger:       params.Logger,
-		nextConsumer: nextConsumer,
-		cancelFunc:   cancel,
-		tracker:      tracking.NewMetricTracker(ctx, cfg.MaxStale),
+		logger:        params.Logger,
+		monotonicOnly: cfg.MonotonicOnly,
+		nextConsumer:  nextConsumer,
+		cancelFunc:    cancel,
+		tracker:       tracking.NewMetricTracker(ctx, cfg.MaxStale),
 	}
 	if len(cfg.Metrics) > 0 {
 		p.enabledMetrics = make(map[string]struct{}, len(cfg.Metrics))

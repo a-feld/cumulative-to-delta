@@ -15,6 +15,9 @@ type Config struct {
 
 	// List of cumulative metrics to convert to delta. Default: converts all cumulative metrics to delta.
 	Metrics []string `mapstructure:"metrics"`
+
+	// Set to true in order to convert only monotonic metrics
+	MonotonicOnly bool `mapstructure:"monotonic_only"`
 }
 
 var _ config.Processor = (*Config)(nil)
