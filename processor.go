@@ -7,9 +7,11 @@ import (
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/model/pdata"
+	"go.uber.org/zap"
 )
 
 type processor struct {
+	logger         *zap.Logger
 	nextConsumer   consumer.Metrics
 	cancelFunc     context.CancelFunc
 	tracker        tracking.MetricTracker
@@ -92,10 +94,12 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				ObservedTimestamp: dp.Timestamp(),
 				FloatValue:        dp.Value(),
 			}
-			delta, valid := p.tracker.Convert(tracking.MetricPoint{
+			trackingPoint := tracking.MetricPoint{
 				Identity: id,
 				Point:    point,
-			})
+			}
+			delta, valid := p.tracker.Convert(trackingPoint)
+			p.logger.Debug("cumulative-to-delta", zap.Any("point", trackingPoint), zap.Any("delta", delta))
 
 			// TODO: add comment about non-monotonic cumulative metrics
 			if !valid {
@@ -114,10 +118,12 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				ObservedTimestamp: dp.Timestamp(),
 				IntValue:          dp.Value(),
 			}
-			delta, valid := p.tracker.Convert(tracking.MetricPoint{
+			trackingPoint := tracking.MetricPoint{
 				Identity: id,
 				Point:    point,
-			})
+			}
+			delta, valid := p.tracker.Convert(trackingPoint)
+			p.logger.Debug("cumulative-to-delta", zap.Any("point", trackingPoint), zap.Any("delta", delta))
 			if !valid {
 				return true
 			}
@@ -128,9 +134,10 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 	}
 }
 
-func createProcessor(cfg *Config, nextConsumer consumer.Metrics) (*processor, error) {
+func createProcessor(cfg *Config, params component.ProcessorCreateSettings, nextConsumer consumer.Metrics) (*processor, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	p := &processor{
+		logger:       params.Logger,
 		nextConsumer: nextConsumer,
 		cancelFunc:   cancel,
 		tracker:      tracking.NewMetricTracker(ctx, cfg.MaxStale),

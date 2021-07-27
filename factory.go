@@ -33,10 +33,10 @@ func createDefaultConfig() config.Processor {
 
 func createMetricsProcessor(
 	_ context.Context,
-	_ component.ProcessorCreateSettings,
+	params component.ProcessorCreateSettings,
 	cfg config.Processor,
 	nextConsumer consumer.Metrics) (component.MetricsProcessor, error) {
-	processor, err := createProcessor(cfg.(*Config), nextConsumer)
+	processor, err := createProcessor(cfg.(*Config), params, nextConsumer)
 	if err != nil {
 		return nil, err
 	}

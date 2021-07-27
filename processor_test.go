@@ -4,14 +4,19 @@ import (
 	"context"
 	"testing"
 
+	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/model/pdata"
+	"go.uber.org/zap"
 )
 
 func BenchmarkConsumeMetrics(b *testing.B) {
 	c := consumertest.NewNop()
+	params := component.ProcessorCreateSettings{
+		Logger:         zap.NewNop(),
+	}
 	cfg := createDefaultConfig()
-	p, err := createProcessor(cfg.(*Config), c)
+	p, err := createProcessor(cfg.(*Config), params, c)
 	if err != nil {
 		panic(err)
 	}
