@@ -3,6 +3,7 @@ package tracking
 import (
 	"bytes"
 	"context"
+	"math"
 	"sync"
 	"time"
 
@@ -65,6 +66,13 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 	}
 
 	metricPoint := in.Point
+
+	// NaN is used to signal "stale" metrics.
+	// These are ignored for now.
+	// https://github.com/open-telemetry/opentelemetry-collector/pull/3423
+	if math.IsNaN(metricPoint.FloatValue) {
+		return
+	}
 
 	b := identityBufferPool.Get().(*bytes.Buffer)
 	b.Reset()
