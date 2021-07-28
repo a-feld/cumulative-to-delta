@@ -36,7 +36,6 @@ func (p *processor) Shutdown(ctx context.Context) error {
 
 func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 	rms := md.ResourceMetrics()
-	md.DataPointCount()
 
 	rms.RemoveIf(func(rm pdata.ResourceMetrics) bool {
 		ilms := rm.InstrumentationLibraryMetrics()
