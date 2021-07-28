@@ -38,18 +38,14 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 	rms := md.ResourceMetrics()
 	md.DataPointCount()
 
-	for i := 0; i < rms.Len(); i++ {
-		rm := rms.At(i)
+	rms.RemoveIf(func(rm pdata.ResourceMetrics) bool {
 		ilms := rm.InstrumentationLibraryMetrics()
-		for j := 0; j < ilms.Len(); j++ {
-			ilm := ilms.At(j)
-
+		ilms.RemoveIf(func(ilm pdata.InstrumentationLibraryMetrics) bool {
 			ms := ilm.Metrics()
-			for k := 0; k < ms.Len(); k++ {
-				m := ms.At(k)
+			ms.RemoveIf(func(m pdata.Metric) bool {
 				if p.enabledMetrics != nil {
 					if _, ok := p.enabledMetrics[m.Name()]; !ok {
-						continue
+						return false
 					}
 				}
 				baseIdentity := tracking.MetricIdentity{
@@ -64,29 +60,34 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 				case pdata.MetricDataTypeIntSum:
 					ms := m.IntSum()
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
-						break
+						return false
 					}
 					if p.monotonicOnly && !ms.IsMonotonic() {
-						break
+						return false
 					}
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
 					p.convertDataPoints(ms.DataPoints(), baseIdentity)
 					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
+					return ms.DataPoints().Len() == 0
 				case pdata.MetricDataTypeSum:
 					ms := m.Sum()
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
-						break
+						return false
 					}
 					if p.monotonicOnly && !ms.IsMonotonic() {
-						break
+						return false
 					}
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
 					p.convertDataPoints(ms.DataPoints(), baseIdentity)
 					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
+					return ms.DataPoints().Len() == 0
 				}
-			}
-		}
-	}
+				return false
+			})
+			return ilm.Metrics().Len() == 0
+		})
+		return rm.InstrumentationLibraryMetrics().Len() == 0
+	})
 	return p.nextConsumer.ConsumeMetrics(ctx, md)
 }
 
