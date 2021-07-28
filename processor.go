@@ -149,7 +149,7 @@ func createProcessor(cfg *Config, params component.ProcessorCreateSettings, next
 		monotonicOnly: cfg.MonotonicOnly,
 		nextConsumer:  nextConsumer,
 		cancelFunc:    cancel,
-		tracker:       tracking.NewMetricTracker(ctx, cfg.MaxStale),
+		tracker:       tracking.NewMetricTracker(ctx, params.Logger, cfg.MaxStale),
 	}
 	if len(cfg.Metrics) > 0 {
 		p.enabledMetrics = make(map[string]struct{}, len(cfg.Metrics))

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/model/pdata"
+	"go.uber.org/zap"
 )
 
 func TestMetricTracker_Convert(t *testing.T) {
@@ -24,7 +25,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 	miIntSum := miSum
 	miIntSum.MetricDataType = pdata.MetricDataTypeIntSum
 
-	m := NewMetricTracker(context.Background(), 0)
+	m := NewMetricTracker(context.Background(), zap.NewNop(), 0)
 
 	tests := []struct {
 		name    string

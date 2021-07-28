@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/collector/model/pdata"
+	"go.uber.org/zap"
 )
 
 // Allocate a minimum of 64 bytes to the builder initially
@@ -43,8 +44,8 @@ type MetricTracker interface {
 	Convert(MetricPoint) (DeltaValue, bool)
 }
 
-func NewMetricTracker(ctx context.Context, maxStale time.Duration) MetricTracker {
-	t := &metricTracker{maxStale: maxStale}
+func NewMetricTracker(ctx context.Context, logger *zap.Logger, maxStale time.Duration) MetricTracker {
+	t := &metricTracker{logger: logger, maxStale: maxStale}
 	if maxStale > 0 {
 		go t.sweeper(ctx, t.removeStale)
 	}
@@ -52,6 +53,7 @@ func NewMetricTracker(ctx context.Context, maxStale time.Duration) MetricTracker
 }
 
 type metricTracker struct {
+	logger   *zap.Logger
 	maxStale time.Duration
 	states   sync.Map
 }
@@ -160,6 +162,7 @@ func (t *metricTracker) removeStale(staleBefore pdata.Timestamp) {
 		lastObserved := s.PrevPoint.ObservedTimestamp
 		s.Unlock()
 		if lastObserved < staleBefore {
+			t.logger.Debug("removing stale state key", zap.String("key", key.(string)))
 			t.states.Delete(key)
 		}
 		return true
