@@ -106,7 +106,7 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				Point:    point,
 			}
 			delta, valid := p.tracker.Convert(trackingPoint)
-			p.logger.Debug("cumulative-to-delta", zap.Any("id", id), zap.Any("point", point), zap.Any("delta", delta))
+			p.logger.Debug("cumulative-to-delta", zap.Any("id", id), zap.Any("point", point), zap.Any("delta", delta), zap.Bool("valid", valid))
 
 			// TODO: add comment about non-monotonic cumulative metrics
 			if !valid {
@@ -130,7 +130,7 @@ func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.Metri
 				Point:    point,
 			}
 			delta, valid := p.tracker.Convert(trackingPoint)
-			p.logger.Debug("cumulative-to-delta", zap.Any("id", id), zap.Any("point", point), zap.Any("delta", delta))
+			p.logger.Debug("cumulative-to-delta", zap.Any("id", id), zap.Any("point", point), zap.Any("delta", delta), zap.Bool("valid", valid))
 			if !valid {
 				return true
 			}
