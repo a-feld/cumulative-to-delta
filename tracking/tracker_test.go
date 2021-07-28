@@ -181,6 +181,7 @@ func Test_metricTracker_removeStale(t *testing.T) {
 				syncMap.Store(k, v)
 			}
 			tr := &metricTracker{
+				logger:   zap.NewNop(),
 				maxStale: tt.fields.MaxStale,
 				states:   syncMap,
 			}
@@ -209,6 +210,7 @@ func Test_metricTracker_sweeper(t *testing.T) {
 	}
 
 	tr := &metricTracker{
+		logger:   zap.NewNop(),
 		maxStale: 1 * time.Millisecond,
 	}
 
