@@ -1,6 +1,35 @@
-# :construction: cumulative-to-delta :construction:
+# Cumulative to Delta Processor
+**Status: under development; Not recommended for production usage.**
 
-:warning: This code is currently in an unfinished state and is under construction :warning:
+Supported pipeline types: metrics
 
-This code is a rough sketch of a cumulative to delta processor for OpenTelemetry.
-It doesn't _really_ work that well right now. It's just me exploring some ideas. Please withhold judgement :smile:
+## Description
+
+The cumulative to delta processor (`cumulativetodeltaprocessor`) converts cumulative sum metrics to cumulative delta. 
+
+## Configuration
+
+The default configuration is to convert all monotonic sum metrics from aggregation temporality cumulative to aggregation temporality delta.
+
+The following settings can be optionally configured:
+
+- `metrics`: The processor uses metric names to identify a set of cumulative sum metrics and converts them to cumulative delta. Defaults to converting all metric names.
+- `max_stale`: The total time a state entry will live past the time it was last seen. Set to 0 to retain state indefinitely. Default: 0
+- `monotonic_only`: Specify whether only monotonic metrics are converted from cumulative to delta. Default: `true`. Set to `false` to convert metrics regardless of monotonic setting.
+
+#### Example
+
+```yaml
+processors:
+    # processor name: cumulativetodelta
+    cumulativetodelta:
+
+        # list the cumulative sum metrics to convert to delta
+        # (optional - defaults to converting all monotonic cumulative sum metrics)
+        metrics:
+            - <metric_1_name>
+            - <metric_2_name>
+            .
+            .
+            - <metric_n_name>
+```

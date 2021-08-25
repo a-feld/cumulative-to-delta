@@ -1,9 +1,22 @@
+// Copyright The OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tracking
 
 import (
 	"context"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,23 +31,23 @@ func TestMetricTracker_Convert(t *testing.T) {
 		MetricDataType:         pdata.MetricDataTypeSum,
 		MetricIsMonotonic:      true,
 		MetricName:             "",
-		MetricDescription:      "",
 		MetricUnit:             "",
-		LabelsMap:              pdata.NewStringMap(),
+		Attributes:             pdata.NewAttributeMap(),
 	}
 	miIntSum := miSum
-	miIntSum.MetricDataType = pdata.MetricDataTypeIntSum
+	miIntSum.MetricValueType = pdata.MetricValueTypeInt
+	miSum.MetricValueType = pdata.MetricValueTypeDouble
 
 	m := NewMetricTracker(context.Background(), zap.NewNop(), 0)
 
 	tests := []struct {
 		name    string
-		point   ValuePoint
+		value   ValuePoint
 		wantOut DeltaValue
 	}{
 		{
 			name: "Initial Value recorded",
-			point: ValuePoint{
+			value: ValuePoint{
 				ObservedTimestamp: 10,
 				FloatValue:        100.0,
 				IntValue:          100,
@@ -47,7 +60,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Higher Value Recorded",
-			point: ValuePoint{
+			value: ValuePoint{
 				ObservedTimestamp: 50,
 				FloatValue:        225.0,
 				IntValue:          225,
@@ -60,7 +73,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Lower Value Recorded - No Previous Offset",
-			point: ValuePoint{
+			value: ValuePoint{
 				ObservedTimestamp: 100,
 				FloatValue:        75.0,
 				IntValue:          75,
@@ -73,7 +86,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Record delta above first recorded value",
-			point: ValuePoint{
+			value: ValuePoint{
 				ObservedTimestamp: 150,
 				FloatValue:        300.0,
 				IntValue:          300,
@@ -86,7 +99,7 @@ func TestMetricTracker_Convert(t *testing.T) {
 		},
 		{
 			name: "Lower Value Recorded - Previous Offset Recorded",
-			point: ValuePoint{
+			value: ValuePoint{
 				ObservedTimestamp: 200,
 				FloatValue:        25.0,
 				IntValue:          25,
@@ -102,11 +115,11 @@ func TestMetricTracker_Convert(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			floatPoint := MetricPoint{
 				Identity: miSum,
-				Point:    tt.point,
+				Value:    tt.value,
 			}
 			intPoint := MetricPoint{
 				Identity: miIntSum,
-				Point:    tt.point,
+				Value:    tt.value,
 			}
 
 			if gotOut, valid := m.Convert(floatPoint); !valid || !reflect.DeepEqual(gotOut.StartTimestamp, tt.wantOut.StartTimestamp) || !reflect.DeepEqual(gotOut.FloatValue, tt.wantOut.FloatValue) {
@@ -120,11 +133,11 @@ func TestMetricTracker_Convert(t *testing.T) {
 	}
 
 	t.Run("Invalid metric identity", func(t *testing.T) {
-		invalidId := miIntSum
-		invalidId.MetricDataType = pdata.MetricDataTypeGauge
+		invalidID := miIntSum
+		invalidID.MetricDataType = pdata.MetricDataTypeGauge
 		_, valid := m.Convert(MetricPoint{
-			Identity: invalidId,
-			Point: ValuePoint{
+			Identity: invalidID,
+			Value: ValuePoint{
 				ObservedTimestamp: 0,
 				FloatValue:        100.0,
 				IntValue:          100,
@@ -176,14 +189,12 @@ func Test_metricTracker_removeStale(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			syncMap := sync.Map{}
-			for k, v := range tt.fields.States {
-				syncMap.Store(k, v)
-			}
 			tr := &metricTracker{
 				logger:   zap.NewNop(),
 				maxStale: tt.fields.MaxStale,
-				states:   syncMap,
+			}
+			for k, v := range tt.fields.States {
+				tr.states.Store(k, v)
 			}
 			tr.removeStale(currentTime)
 

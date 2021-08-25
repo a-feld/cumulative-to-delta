@@ -1,49 +1,69 @@
+// Copyright The OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cumulativetodeltaprocessor
 
 import (
 	"context"
 
-	"github.com/a-feld/cumulativetodeltaprocessor/tracking"
 	"go.opentelemetry.io/collector/component"
-	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/model/pdata"
 	"go.uber.org/zap"
+
+	"github.com/a-feld/cumulativetodeltaprocessor/tracking"
 )
 
-type processor struct {
-	logger         *zap.Logger
-	monotonicOnly  bool
-	nextConsumer   consumer.Metrics
-	cancelFunc     context.CancelFunc
-	tracker        tracking.MetricTracker
-	enabledMetrics map[string]struct{}
+type cumulativeToDeltaProcessor struct {
+	metrics         map[string]struct{}
+	logger          *zap.Logger
+	deltaCalculator tracking.MetricTracker
+	monotonicOnly   bool
+	cancelFunc      context.CancelFunc
 }
 
-var _ component.MetricsProcessor = (*processor)(nil)
-
-func (p processor) Capabilities() consumer.Capabilities {
-	return consumer.Capabilities{MutatesData: true}
+func newCumulativeToDeltaProcessor(config *Config, logger *zap.Logger) *cumulativeToDeltaProcessor {
+	ctx, cancel := context.WithCancel(context.Background())
+	p := &cumulativeToDeltaProcessor{
+		logger:          logger,
+		deltaCalculator: tracking.NewMetricTracker(ctx, logger, config.MaxStale),
+		monotonicOnly:   config.MonotonicOnly,
+		cancelFunc:      cancel,
+	}
+	if len(config.Metrics) > 0 {
+		p.metrics = make(map[string]struct{}, len(config.Metrics))
+		for _, m := range config.Metrics {
+			p.metrics[m] = struct{}{}
+		}
+	}
+	return p
 }
 
-func (p *processor) Start(ctx context.Context, host component.Host) error {
+// Start is invoked during service startup.
+func (ctdp *cumulativeToDeltaProcessor) Start(context.Context, component.Host) error {
 	return nil
 }
 
-func (p *processor) Shutdown(ctx context.Context) error {
-	p.cancelFunc()
-	return nil
-}
-
-func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
-	rms := md.ResourceMetrics()
-
-	rms.RemoveIf(func(rm pdata.ResourceMetrics) bool {
+// processMetrics implements the ProcessMetricsFunc type.
+func (ctdp *cumulativeToDeltaProcessor) processMetrics(_ context.Context, md pdata.Metrics) (pdata.Metrics, error) {
+	resourceMetricsSlice := md.ResourceMetrics()
+	resourceMetricsSlice.RemoveIf(func(rm pdata.ResourceMetrics) bool {
 		ilms := rm.InstrumentationLibraryMetrics()
 		ilms.RemoveIf(func(ilm pdata.InstrumentationLibraryMetrics) bool {
 			ms := ilm.Metrics()
 			ms.RemoveIf(func(m pdata.Metric) bool {
-				if p.enabledMetrics != nil {
-					if _, ok := p.enabledMetrics[m.Name()]; !ok {
+				if ctdp.metrics != nil {
+					if _, ok := ctdp.metrics[m.Name()]; !ok {
 						return false
 					}
 				}
@@ -52,109 +72,73 @@ func (p processor) ConsumeMetrics(ctx context.Context, md pdata.Metrics) error {
 					InstrumentationLibrary: ilm.InstrumentationLibrary(),
 					MetricDataType:         m.DataType(),
 					MetricName:             m.Name(),
-					MetricDescription:      m.Description(),
 					MetricUnit:             m.Unit(),
 				}
 				switch m.DataType() {
-				case pdata.MetricDataTypeIntSum:
-					ms := m.IntSum()
-					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
-						return false
-					}
-					if p.monotonicOnly && !ms.IsMonotonic() {
-						return false
-					}
-					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
-					p.convertDataPoints(ms.DataPoints(), baseIdentity)
-					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
-					return ms.DataPoints().Len() == 0
 				case pdata.MetricDataTypeSum:
 					ms := m.Sum()
 					if ms.AggregationTemporality() != pdata.AggregationTemporalityCumulative {
 						return false
 					}
-					if p.monotonicOnly && !ms.IsMonotonic() {
+					if ctdp.monotonicOnly && !ms.IsMonotonic() {
 						return false
 					}
 					baseIdentity.MetricIsMonotonic = ms.IsMonotonic()
-					p.convertDataPoints(ms.DataPoints(), baseIdentity)
+					ctdp.convertDataPoints(ms.DataPoints(), baseIdentity)
 					ms.SetAggregationTemporality(pdata.AggregationTemporalityDelta)
 					return ms.DataPoints().Len() == 0
+				default:
+					return false
 				}
-				return false
 			})
 			return ilm.Metrics().Len() == 0
 		})
 		return rm.InstrumentationLibraryMetrics().Len() == 0
 	})
-	return p.nextConsumer.ConsumeMetrics(ctx, md)
+	return md, nil
 }
 
-func (p processor) convertDataPoints(in interface{}, baseIdentity tracking.MetricIdentity) {
+// Shutdown is invoked during service shutdown.
+func (ctdp *cumulativeToDeltaProcessor) Shutdown(context.Context) error {
+	ctdp.cancelFunc()
+	return nil
+}
+
+func (ctdp *cumulativeToDeltaProcessor) convertDataPoints(in interface{}, baseIdentity tracking.MetricIdentity) {
 	switch dps := in.(type) {
-	case pdata.DoubleDataPointSlice:
-		dps.RemoveIf(func(dp pdata.DoubleDataPoint) bool {
+	case pdata.NumberDataPointSlice:
+		dps.RemoveIf(func(dp pdata.NumberDataPoint) bool {
 			id := baseIdentity
 			id.StartTimestamp = dp.StartTimestamp()
-			id.LabelsMap = dp.LabelsMap()
+			id.Attributes = dp.Attributes()
+			id.MetricValueType = dp.Type()
 			point := tracking.ValuePoint{
 				ObservedTimestamp: dp.Timestamp(),
-				FloatValue:        dp.Value(),
+			}
+			if id.IsFloatVal() {
+				point.FloatValue = dp.DoubleVal()
+			} else {
+				point.IntValue = dp.IntVal()
 			}
 			trackingPoint := tracking.MetricPoint{
 				Identity: id,
-				Point:    point,
+				Value:    point,
 			}
-			delta, valid := p.tracker.Convert(trackingPoint)
-			p.logger.Debug("cumulative-to-delta", zap.Any("id", id), zap.Any("point", point), zap.Any("delta", delta), zap.Bool("valid", valid))
+			delta, valid := ctdp.deltaCalculator.Convert(trackingPoint)
 
-			// TODO: add comment about non-monotonic cumulative metrics
+			// When converting non-monotonic cumulative counters,
+			// the first data point is omitted since the initial
+			// reference is not assumed to be zero
 			if !valid {
 				return true
 			}
 			dp.SetStartTimestamp(delta.StartTimestamp)
-			dp.SetValue(delta.FloatValue)
-			return false
-		})
-	case pdata.IntDataPointSlice:
-		dps.RemoveIf(func(dp pdata.IntDataPoint) bool {
-			id := baseIdentity
-			id.StartTimestamp = dp.StartTimestamp()
-			id.LabelsMap = dp.LabelsMap()
-			point := tracking.ValuePoint{
-				ObservedTimestamp: dp.Timestamp(),
-				IntValue:          dp.Value(),
+			if id.IsFloatVal() {
+				dp.SetDoubleVal(delta.FloatValue)
+			} else {
+				dp.SetIntVal(delta.IntValue)
 			}
-			trackingPoint := tracking.MetricPoint{
-				Identity: id,
-				Point:    point,
-			}
-			delta, valid := p.tracker.Convert(trackingPoint)
-			p.logger.Debug("cumulative-to-delta", zap.Any("id", id), zap.Any("point", point), zap.Any("delta", delta), zap.Bool("valid", valid))
-			if !valid {
-				return true
-			}
-			dp.SetStartTimestamp(delta.StartTimestamp)
-			dp.SetValue(delta.IntValue)
 			return false
 		})
 	}
-}
-
-func createProcessor(cfg *Config, params component.ProcessorCreateSettings, nextConsumer consumer.Metrics) (*processor, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	p := &processor{
-		logger:        params.Logger,
-		monotonicOnly: cfg.MonotonicOnly,
-		nextConsumer:  nextConsumer,
-		cancelFunc:    cancel,
-		tracker:       tracking.NewMetricTracker(ctx, params.Logger, cfg.MaxStale),
-	}
-	if len(cfg.Metrics) > 0 {
-		p.enabledMetrics = make(map[string]struct{}, len(cfg.Metrics))
-		for _, m := range cfg.Metrics {
-			p.enabledMetrics[m] = struct{}{}
-		}
-	}
-	return p, nil
 }

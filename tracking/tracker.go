@@ -1,3 +1,17 @@
+// Copyright The OpenTelemetry Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package tracking
 
 import (
@@ -59,38 +73,36 @@ type metricTracker struct {
 }
 
 func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
-	metricId := in.Identity
-	metricPoint := in.Point
-	switch metricId.MetricDataType {
-	case pdata.MetricDataTypeSum:
-		// NaN is used to signal "stale" metrics.
-		// These are ignored for now.
-		// https://github.com/open-telemetry/opentelemetry-collector/pull/3423
-		if math.IsNaN(metricPoint.FloatValue) {
-			return
-		}
-	case pdata.MetricDataTypeIntSum:
-	default:
+	metricID := in.Identity
+	metricPoint := in.Value
+	if !metricID.IsSupportedMetricType() {
+		return
+	}
+
+	// NaN is used to signal "stale" metrics.
+	// These are ignored for now.
+	// https://github.com/open-telemetry/opentelemetry-collector/pull/3423
+	if metricID.IsFloatVal() && math.IsNaN(metricPoint.FloatValue) {
 		return
 	}
 
 	b := identityBufferPool.Get().(*bytes.Buffer)
 	b.Reset()
-	metricId.Write(b)
-	hashableId := b.String()
+	metricID.Write(b)
+	hashableID := b.String()
 	identityBufferPool.Put(b)
 
 	var s interface{}
 	var ok bool
-	if s, ok = t.states.Load(hashableId); !ok {
-		s, ok = t.states.LoadOrStore(hashableId, &State{
-			Identity:  metricId,
+	if s, ok = t.states.Load(hashableID); !ok {
+		s, ok = t.states.LoadOrStore(hashableID, &State{
+			Identity:  metricID,
 			PrevPoint: metricPoint,
 		})
 	}
 
 	if !ok {
-		if metricId.MetricIsMonotonic {
+		if metricID.MetricIsMonotonic {
 			out = DeltaValue{
 				StartTimestamp: metricPoint.ObservedTimestamp,
 				FloatValue:     metricPoint.FloatValue,
@@ -108,27 +120,24 @@ func (t *metricTracker) Convert(in MetricPoint) (out DeltaValue, valid bool) {
 
 	out.StartTimestamp = state.PrevPoint.ObservedTimestamp
 
-	switch metricId.MetricDataType {
-	case pdata.MetricDataTypeSum:
-		// Convert state values to float64
+	if metricID.IsFloatVal() {
 		value := metricPoint.FloatValue
 		prevValue := state.PrevPoint.FloatValue
 		delta := value - prevValue
 
 		// Detect reset on a monotonic counter
-		if metricId.MetricIsMonotonic && value < prevValue {
+		if metricID.MetricIsMonotonic && value < prevValue {
 			delta = value
 		}
 
 		out.FloatValue = delta
-	case pdata.MetricDataTypeIntSum:
-		// Convert state values to int64
+	} else {
 		value := metricPoint.IntValue
 		prevValue := state.PrevPoint.IntValue
 		delta := value - prevValue
 
 		// Detect reset on a monotonic counter
-		if metricId.MetricIsMonotonic && value < prevValue {
+		if metricID.MetricIsMonotonic && value < prevValue {
 			delta = value
 		}
 

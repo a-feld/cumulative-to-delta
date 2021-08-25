@@ -1,0 +1,25 @@
+receivers:
+  nop:
+
+processors:
+  cumulativetodelta:
+  cumulativetodelta/alt:
+    metrics:
+      - metric1
+      - metric2
+    max_stale: 10s
+    monotonic_only: false
+
+exporters:
+  nop:
+
+service:
+  pipelines:
+    traces:
+      receivers: [nop]
+      processors: [cumulativetodelta]
+      exporters: [nop]
+    metrics:
+      receivers: [nop]
+      processors: [cumulativetodelta]
+      exporters: [nop]
